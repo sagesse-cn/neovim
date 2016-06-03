@@ -151,7 +151,9 @@ void mch_exit(int r)
   free_all_mem();
 #endif
 
+#ifndef MAKE_LIB
   exit(r);
+#endif
 }
 
 #define SHELL_SPECIAL (char_u *)"\t \"&'$;<>()\\|"

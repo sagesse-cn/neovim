@@ -42,6 +42,10 @@ struct ui_t {
   void (*stop)(UI *ui);
 };
 
+#ifdef CUSTOM_UI
+extern void custom_ui_start(void);
+#endif
+
 #ifdef INCLUDE_GENERATED_DECLARATIONS
 # include "ui.h.generated.h"
 #endif

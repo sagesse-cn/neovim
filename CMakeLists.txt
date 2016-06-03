@@ -297,6 +297,16 @@ include_directories(SYSTEM ${LIBUV_INCLUDE_DIRS})
 find_package(Msgpack 1.0.0 REQUIRED)
 include_directories(SYSTEM ${MSGPACK_INCLUDE_DIRS})
 
+if(ENABLE_CUSTOM_UI MATCHES ENABLE)
+  option(CUSTOM_UI "Enable custom UI" ON)
+else()
+  option(CUSTOM_UI "Enable custom UI" OFF)
+endif()
+
+if(DISABLE_TUI MATCHES DISABLE)
+  option(FEAT_TUI "Enable the Terminal UI" OFF)
+endif()
+
 if(UNIX)
   option(FEAT_TUI "Enable the Terminal UI" ON)
 else()
