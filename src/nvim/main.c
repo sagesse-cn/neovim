@@ -1314,12 +1314,18 @@ static void check_tty(mparm_T *parmp)
 
     ui_flush();
 
+#ifdef MAKE_LIB
+    // Why delay here? Probably we don't need this?
+  }
+  return;
+#else
     if (scriptin[0] == NULL) {
       os_delay(2000L, true);
     }
 
     TIME_MSG("Warning delay");
   }
+#endif
 }
 
 /*
