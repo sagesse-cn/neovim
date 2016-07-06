@@ -3024,12 +3024,14 @@ return {
     addr_type=ADDR_LINES,
     func='ex_while',
   },
+  --[[
   {
     command='winsize',
     flags=bit.bor(EXTRA, NEEDARG, TRLBAR),
     addr_type=ADDR_LINES,
     func='ex_winsize',
   },
+  --]]
   {
     command='wincmd',
     flags=bit.bor(NEEDARG, WORD1, RANGE, NOTADR),
@@ -3042,12 +3044,14 @@ return {
     addr_type=ADDR_WINDOWS,
     func='ex_listdo',
   },
+  --[[
   {
     command='winpos',
     flags=bit.bor(EXTRA, TRLBAR, CMDWIN),
     addr_type=ADDR_LINES,
     func='ex_ni',
   },
+  --]]
   {
     command='wnext',
     flags=bit.bor(RANGE, NOTADR, BANG, FILE1, ARGOPT, TRLBAR),
