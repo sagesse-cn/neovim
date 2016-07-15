@@ -7754,9 +7754,17 @@ static void ins_mousescroll(int dir)
         scroll_redraw(dir,
             (long)(curwin->w_botline - curwin->w_topline));
       else
+#ifdef CUSTOM_UI
+        scroll_redraw(dir, 1L);
+#else
         scroll_redraw(dir, 3L);
+#endif
     } else {
+#ifdef CUSTOM_UI
+        mouse_scroll_horiz_step(dir, 1);
+#else
         mouse_scroll_horiz(dir);
+#endif
     }
     did_scroll = TRUE;
   }
