@@ -1003,6 +1003,7 @@ return {
       varname='p_guicursor',
       defaults={if_true={vi="n-v-c:block,o:hor50,i-ci:hor15,r-cr:hor30,sm:block"}}
     },
+    --[[
     {
       full_name='guifont', abbreviation='gfn',
       type='string', list='onecomma', scope={'global'},
@@ -1026,6 +1027,7 @@ return {
       redraw={'everything'},
       enable_if=false,
     },
+    --]]
     {
       full_name='guiheadroom', abbreviation='ghr',
       type='number', scope={'global'},
