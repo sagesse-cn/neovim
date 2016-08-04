@@ -517,6 +517,8 @@ static void ui_mode_change(void)
     mode = REPLACE;
   else if (State & INSERT)
     mode = INSERT;
+  else if (State & CMDLINE)
+    mode = CMDLINE;
   else
     mode = NORMAL;
   UI_CALL(mode_change, mode);
