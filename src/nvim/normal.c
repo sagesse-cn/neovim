@@ -6354,6 +6354,8 @@ static void nv_visual(cmdarg_T *cap)
       }
     }
   }
+
+  ui_cursor_shape();
 }
 
 /*
