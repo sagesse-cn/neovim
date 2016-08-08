@@ -363,7 +363,6 @@ return {
       redraw={'current_window'},
       defaults={if_true={vi=""}}
     },
-    --[[
     {
       full_name='columns', abbreviation='co',
       type='number', scope={'global'},
@@ -374,7 +373,6 @@ return {
       varname='Columns',
       defaults={if_true={vi=macros('DFLT_COLS')}}
     },
-    --]]
     {
       full_name='comments', abbreviation='com',
       type='string', list='onecomma', scope={'buffer'},
@@ -1363,7 +1361,6 @@ return {
       redraw={'current_window'},
       defaults={if_true={vi=false}}
     },
-    --[[
     {
       full_name='lines',
       type='number', scope={'global'},
@@ -1374,7 +1371,6 @@ return {
       varname='Rows',
       defaults={if_true={vi=macros('DFLT_ROWS')}}
     },
-    --]]
     {
       full_name='linespace', abbreviation='lsp',
       type='number', scope={'global'},
