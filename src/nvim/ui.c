@@ -512,12 +512,17 @@ static void ui_mode_change(void)
   if (!full_screen) {
     return;
   }
-  /* Get a simple UI mode out of State. */
-  if ((State & REPLACE) == REPLACE)
+
+  // Use the real state here to get also VISUAL
+  int state = get_real_state();
+
+  if ((state & REPLACE) == REPLACE)
     mode = REPLACE;
-  else if (State & INSERT)
+  else if (state & VISUAL)
+    mode = VISUAL;
+  else if (state & INSERT)
     mode = INSERT;
-  else if (State & CMDLINE)
+  else if (state & CMDLINE)
     mode = CMDLINE;
   else
     mode = NORMAL;
