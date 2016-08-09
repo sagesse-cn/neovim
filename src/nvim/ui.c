@@ -514,15 +514,15 @@ static void ui_mode_change(void)
   }
 
   // Use the real state here to get also VISUAL
-  int state = get_real_state();
+  int real_state = get_real_state();
 
-  if ((state & REPLACE) == REPLACE)
+  if ((real_state & REPLACE) == REPLACE)
     mode = REPLACE;
-  else if (state & VISUAL)
+  else if (real_state & VISUAL)
     mode = VISUAL;
-  else if (state & INSERT)
+  else if (real_state & INSERT)
     mode = INSERT;
-  else if (state & CMDLINE)
+  else if (real_state & CMDLINE)
     mode = CMDLINE;
   else
     mode = NORMAL;
