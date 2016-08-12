@@ -90,7 +90,7 @@ void ui_builtin_start(void)
 #ifdef FEAT_TUI
   tui_start();
 #elif defined CUSTOM_UI
-  printf("Starting custom UI\n");
+  DLOG("Starting custom UI");
   custom_ui_start();
 #else
   fprintf(stderr, "Neovim was built without a Terminal UI," \
