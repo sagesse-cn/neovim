@@ -140,9 +140,9 @@ void mch_exit(int r)
 {
   exiting = true;
 
+  ml_close_all(true);           /* remove all memfiles */
   ui_builtin_stop();
   ui_flush();
-  ml_close_all(true);           /* remove all memfiles */
 
   event_teardown();
   stream_set_blocking(input_global_fd(), true);  // normalize stream (#2598)
