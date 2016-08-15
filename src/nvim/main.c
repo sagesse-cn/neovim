@@ -277,7 +277,10 @@ int main(int argc, char **argv)
     printf(_("%d files to edit\n"), GARGCOUNT);
 
   full_screen = true;
+  
+#ifndef CUSTOM_UI
   check_tty(&params);
+#endif
 
   /*
    * Set the default values for the options that use Rows and Columns.
@@ -420,7 +423,7 @@ int main(int argc, char **argv)
   if (params.edit_type == EDIT_STDIN && !recoverymode)
     read_stdin();
 
-
+  
   if (reading_input && (need_wait_return || msg_didany)) {
     // Since at this point there's no UI instance running yet, error messages
     // would have been printed to stdout. Before starting (which can result in
@@ -429,13 +432,20 @@ int main(int argc, char **argv)
     TIME_MSG("waiting for return");
     wait_return(TRUE);
   }
-
+  
   if (!params.headless) {
+    if (msg_didany) {
+      // copied from wait_return()
+      need_wait_return = FALSE;
+      did_wait_return = TRUE;
+      emsg_on_display = FALSE; /* can delete error message now */
+    }
+
     // Stop reading from input stream, the UI layer will take over now.
     input_stop();
     ui_builtin_start();
   }
-
+    
   setmouse();  // may start using the mouse
   ui_reset_scroll_region();  // In case Rows changed
 
@@ -1189,9 +1199,15 @@ static void init_startuptime(mparm_T *paramp)
 
 static void check_and_set_isatty(mparm_T *paramp)
 {
+#ifdef CUSTOM_UI
+  paramp->input_isatty = false;
+  paramp->output_isatty = false;
+  paramp->err_isatty = false;
+#else
   paramp->input_isatty = os_isatty(fileno(stdin));
   paramp->output_isatty = os_isatty(fileno(stdout));
   paramp->err_isatty = os_isatty(fileno(stderr));
+#endif
   TIME_MSG("window checked");
 }
 /*
