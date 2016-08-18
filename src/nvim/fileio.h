@@ -31,3 +31,10 @@ typedef struct {
 # include "fileio.h.generated.h"
 #endif
 #endif  // NVIM_FILEIO_H
+
+#ifdef CUSTOM_UI
+extern void custom_ui_autocmds(
+    event_T event, char_u *fname, char_u *fname_io, int group,
+    bool force, buf_T *buf, exarg_T *eap
+);
+#endif
