@@ -107,9 +107,11 @@ Events:
   |TabClosed|
   |TermOpen|
   |TermClose|
+  |TextYankPost|
 
 Highlight groups:
   |hl-EndOfBuffer|
+  |hl-QuickFixLine|
   |hl-TermCursor|
   |hl-TermCursorNC|
 
