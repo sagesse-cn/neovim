@@ -10879,6 +10879,7 @@ static void f_has(typval_T *argvars, typval_T *rettv)
     "gettext",
 #ifdef CUSTOM_UI
     "gui_vimr",
+    "gui_running",
 #endif
 #if defined(HAVE_ICONV_H) && defined(USE_ICONV)
     "iconv",
