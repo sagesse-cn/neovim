@@ -8,6 +8,7 @@ local nvim_prog, command, funcs = helpers.nvim_prog, helpers.command, helpers.fu
 local source, next_message = helpers.source, helpers.next_message
 local meths = helpers.meths
 
+if helpers.pending_win32(pending) then return end
 
 describe('server -> client', function()
   local cid
@@ -162,11 +163,11 @@ describe('server -> client', function()
     end)
 
     it('can communicate buffers, tabpages, and windows', function()
-      eq({3}, eval("rpcrequest(vim, 'vim_get_tabpages')"))
+      eq({1}, eval("rpcrequest(vim, 'vim_get_tabpages')"))
       eq({1}, eval("rpcrequest(vim, 'vim_get_windows')"))
 
       local buf = eval("rpcrequest(vim, 'vim_get_buffers')")[1]
-      eq(2, buf)
+      eq(1, buf)
 
       eval("rpcnotify(vim, 'buffer_set_line', "..buf..", 0, 'SOME TEXT')")
       nvim('command', "call rpcrequest(vim, 'vim_eval', '0')")  -- wait

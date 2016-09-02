@@ -133,11 +133,11 @@ local function stop()
 end
 
 local function nvim_command(cmd)
-  request('vim_command', cmd)
+  request('nvim_command', cmd)
 end
 
 local function nvim_eval(expr)
-  return request('vim_eval', expr)
+  return request('nvim_eval', expr)
 end
 
 local os_name = (function()
@@ -157,12 +157,12 @@ local os_name = (function()
 end)()
 
 local function nvim_call(name, ...)
-  return request('vim_call_function', name, {...})
+  return request('nvim_call_function', name, {...})
 end
 
 local function nvim_feed(input)
   while #input > 0 do
-    local written = request('vim_input', input)
+    local written = request('nvim_input', input)
     input = input:sub(written + 1)
   end
 end
@@ -291,19 +291,55 @@ local function write_file(name, text, dont_dedent)
   file:close()
 end
 
-local function source(code)
-  local tmpname = os.tmpname()
-  if os_name() == 'osx' and string.match(tmpname, '^/tmp') then
-   tmpname = '/private'..tmpname
+-- Tries to get platform name, from $SYSTEM_NAME, uname,
+-- fallback is 'Windows'
+local uname = (function()
+  local platform = nil
+  return (function()
+    if platform then
+      return platform
+    end
+
+    platform = os.getenv("SYSTEM_NAME")
+    if platform then
+      return platform
+    end
+
+    local status, f = pcall(io.popen, "uname -s")
+    if status then
+      platform = f:read("*l")
+    else
+      platform = 'Windows'
+    end
+    return platform
+  end)
+end)()
+
+local function tmpname()
+  local fname = os.tmpname()
+  if uname() == 'Windows' and fname:sub(1, 2) == '\\s' then
+    -- In Windows tmpname() returns a filename starting with
+    -- special sequence \s, prepend $TEMP path
+    local tmpdir = os.getenv('TEMP')
+    return tmpdir..fname
+  elseif fname:match('^/tmp') and uname() == 'Darwin' then
+    -- In OS X /tmp links to /private/tmp
+    return '/private'..fname
+  else
+    return fname
   end
-  write_file(tmpname, code)
-  nvim_command('source '..tmpname)
-  os.remove(tmpname)
-  return tmpname
+end
+
+local function source(code)
+  local fname = tmpname()
+  write_file(fname, code)
+  nvim_command('source '..fname)
+  os.remove(fname)
+  return fname
 end
 
 local function nvim(method, ...)
-  return request('vim_'..method, ...)
+  return request('nvim_'..method, ...)
 end
 
 local function ui(method, ...)
@@ -311,27 +347,26 @@ local function ui(method, ...)
 end
 
 local function nvim_async(method, ...)
-  session:notify('vim_'..method, ...)
+  session:notify('nvim_'..method, ...)
 end
 
 local function buffer(method, ...)
-  return request('buffer_'..method, ...)
+  return request('nvim_buf_'..method, ...)
 end
 
 local function window(method, ...)
-  return request('window_'..method, ...)
+  return request('nvim_win_'..method, ...)
 end
 
 local function tabpage(method, ...)
-  return request('tabpage_'..method, ...)
+  return request('nvim_tabpage_'..method, ...)
 end
 
 local function curbuf(method, ...)
-  local buf = nvim('get_current_buffer')
   if not method then
-    return buf
+    return nvim('get_current_buffer')
   end
-  return buffer(method, buf, ...)
+  return buffer(method, 0, ...)
 end
 
 local function wait()
@@ -351,19 +386,17 @@ local function curbuf_contents()
 end
 
 local function curwin(method, ...)
-  local win = nvim('get_current_window')
   if not method then
-    return win
+    return nvim('get_current_window')
   end
-  return window(method, win, ...)
+  return window(method, 0, ...)
 end
 
 local function curtab(method, ...)
-  local tab = nvim('get_current_tabpage')
   if not method then
-    return tab
+    return nvim('get_current_tabpage')
   end
-  return tabpage(method, tab, ...)
+  return tabpage(method, 0, ...)
 end
 
 local function expect(contents)
@@ -434,6 +467,20 @@ local function create_callindex(func)
   return table
 end
 
+-- Helper to skip tests. Returns true in Windows systems.
+-- pending_func is pending() from busted
+local function pending_win32(pending_func)
+  clear()
+  if uname() == 'Windows' then
+    if pending_func ~= nil then
+      pending_func('FIXME: Windows', function() end)
+    end
+    return true
+  else
+    return false
+  end
+end
+
 local funcs = create_callindex(nvim_call)
 local meths = create_callindex(nvim)
 local uimeths = create_callindex(ui)
@@ -499,6 +546,8 @@ return function(after_each)
     curbufmeths = curbufmeths,
     curwinmeths = curwinmeths,
     curtabmeths = curtabmeths,
+    pending_win32 = pending_win32,
+    tmpname = tmpname,
     NIL = mpack.NIL,
   }
 end
