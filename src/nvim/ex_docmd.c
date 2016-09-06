@@ -6997,6 +6997,8 @@ void post_chdir(CdScope scope)
   }
 
   shorten_fnames(TRUE);
+  
+  apply_autocmds(EVENT_CWDCHANGED, NULL, NULL, false, NULL);
 }
 
 
