@@ -5994,6 +5994,10 @@ static void ex_hide(exarg_T *eap)
  */
 static void ex_stop(exarg_T *eap)
 {
+#ifdef CUSTOM_UI
+  return;
+#endif
+  
   // Disallow suspending in restricted mode (-Z)
   if (!check_restricted()) {
     if (!eap->forceit) {
