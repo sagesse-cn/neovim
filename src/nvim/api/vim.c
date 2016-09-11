@@ -59,10 +59,6 @@ void nvim_feedkeys(String keys, String mode, Boolean escape_csi)
   bool typed = false;
   bool execute = false;
 
-  if (keys.size == 0) {
-    return;
-  }
-
   for (size_t i = 0; i < mode.size; ++i) {
     switch (mode.data[i]) {
     case 'n': remap = false; break;
@@ -71,6 +67,10 @@ void nvim_feedkeys(String keys, String mode, Boolean escape_csi)
     case 'i': insert = true; break;
     case 'x': execute = true; break;
     }
+  }
+
+  if (keys.size == 0 && !execute) {
+    return;
   }
 
   char *keys_esc;
@@ -92,7 +92,12 @@ void nvim_feedkeys(String keys, String mode, Boolean escape_csi)
     typebuf_was_filled = true;
   }
   if (execute) {
+    int save_msg_scroll = msg_scroll;
+
+    /* Avoid a 1 second delay when the keys start Insert mode. */
+    msg_scroll = false;
     exec_normal(true);
+    msg_scroll |= save_msg_scroll;
   }
 }
 
