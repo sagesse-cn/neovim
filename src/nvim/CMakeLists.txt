@@ -89,7 +89,7 @@ endforeach()
 
 list(REMOVE_ITEM NEOVIM_SOURCES ${to_remove})
 
-# Handle legacy files that don't yet pass -Wconversion.
+# Legacy files that do not yet pass -Wconversion.
 set(CONV_SOURCES
   buffer.c
   diff.c
@@ -204,11 +204,12 @@ add_custom_command(OUTPUT ${GENERATED_UNICODE_TABLES}
 )
 
 add_custom_command(OUTPUT ${GENERATED_API_DISPATCH} ${API_METADATA}
-    COMMAND ${LUA_PRG} ${DISPATCH_GENERATOR} ${PROJECT_SOURCE_DIR}/scripts ${API_HEADERS} ${GENERATED_API_DISPATCH} ${API_METADATA}
+    COMMAND ${LUA_PRG} ${DISPATCH_GENERATOR} ${CMAKE_CURRENT_LIST_DIR} ${API_HEADERS} ${GENERATED_API_DISPATCH} ${API_METADATA}
   DEPENDS
     ${API_HEADERS}
     ${MSGPACK_RPC_HEADERS}
     ${DISPATCH_GENERATOR}
+    ${CMAKE_CURRENT_LIST_DIR}/api/dispatch_deprecated.lua
 )
 
 list(APPEND NEOVIM_GENERATED_SOURCES

@@ -44,7 +44,6 @@
 #include "nvim/memory.h"
 #include "nvim/message.h"
 #include "nvim/misc1.h"
-#include "nvim/misc2.h"
 #include "nvim/keymap.h"
 #include "nvim/map.h"
 #include "nvim/file_search.h"
@@ -63,6 +62,7 @@
 #include "nvim/search.h"
 #include "nvim/sha256.h"
 #include "nvim/spell.h"
+#include "nvim/state.h"
 #include "nvim/strings.h"
 #include "nvim/syntax.h"
 #include "nvim/tag.h"
@@ -16336,9 +16336,9 @@ static void f_termopen(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   // Save the job id and pid in b:terminal_job_{id,pid}
   Error err;
   dict_set_value(curbuf->b_vars, cstr_as_string("terminal_job_id"),
-                 INTEGER_OBJ(rettv->vval.v_number), false, &err);
+                 INTEGER_OBJ(rettv->vval.v_number), false, false, &err);
   dict_set_value(curbuf->b_vars, cstr_as_string("terminal_job_pid"),
-                 INTEGER_OBJ(pid), false, &err);
+                 INTEGER_OBJ(pid), false, false, &err);
 
   Terminal *term = terminal_open(topts);
   data->term = term;
@@ -16770,6 +16770,14 @@ static void f_wildmenumode(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 {
   if (wild_menu_showing)
     rettv->vval.v_number = 1;
+}
+
+/// "win_findbuf()" function
+static void f_win_findbuf(typval_T *argvars, typval_T *rettv, FunPtr fptr)
+{
+  if (rettv_list_alloc(rettv) != FAIL) {
+    win_findbuf(argvars, rettv->vval.v_list);
+  }
 }
 
 /// "win_getid()" function
