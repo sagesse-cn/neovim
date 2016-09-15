@@ -27,6 +27,7 @@
 #include "nvim/os/signal.h"
 #include "nvim/popupmnu.h"
 #include "nvim/screen.h"
+#include "nvim/state.h"
 #include "nvim/syntax.h"
 #include "nvim/window.h"
 #ifdef FEAT_TUI
