@@ -7131,7 +7131,7 @@ static void api_wrapper(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   Object result = fn(INVALID_CHANNEL, NO_RESPONSE, args, &err);
 
   if (err.set) {
-    nvim_report_error(cstr_as_string(err.msg));
+    nvim_err_writeln(cstr_as_string(err.msg));
     goto end;
   }
 
@@ -9668,12 +9668,11 @@ static void f_getcompletion(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   }
 
   pat = addstar(xpc.xp_pattern, xpc.xp_pattern_len, xpc.xp_context);
-  if ((rettv_list_alloc(rettv) != FAIL) && (pat != NULL)) {
-    int i;
-
+  rettv_list_alloc(rettv);
+  if (pat != NULL) {
     ExpandOne(&xpc, pat, NULL, options, WILD_ALL_KEEP);
 
-    for (i = 0; i < xpc.xp_numfiles; i++) {
+    for (int i = 0; i < xpc.xp_numfiles; i++) {
       list_append_string(rettv->vval.v_list, xpc.xp_files[i], -1);
     }
   }
@@ -13747,7 +13746,7 @@ static void f_rpcrequest(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   }
 
   if (err.set) {
-    nvim_report_error(cstr_as_string(err.msg));
+    nvim_err_writeln(cstr_as_string(err.msg));
     goto end;
   }
 
@@ -16775,9 +16774,8 @@ static void f_wildmenumode(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 /// "win_findbuf()" function
 static void f_win_findbuf(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 {
-  if (rettv_list_alloc(rettv) != FAIL) {
-    win_findbuf(argvars, rettv->vval.v_list);
-  }
+  rettv_list_alloc(rettv);
+  win_findbuf(argvars, rettv->vval.v_list);
 }
 
 /// "win_getid()" function
@@ -16795,9 +16793,8 @@ static void f_win_gotoid(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 /// "win_id2tabwin()" function
 static void f_win_id2tabwin(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 {
-  if (rettv_list_alloc(rettv) != FAIL) {
-    win_id2tabwin(argvars, rettv->vval.v_list);
-  }
+  rettv_list_alloc(rettv);
+  win_id2tabwin(argvars, rettv->vval.v_list);
 }
 
 /// "win_id2win()" function
