@@ -2518,15 +2518,15 @@ did_set_string_option (
   else if (varp == &p_sbo) {
     if (check_opt_strings(p_sbo, p_scbopt_values, TRUE) != OK)
       errmsg = e_invarg;
-  }
-  /* 'ambiwidth' */
-  else if (varp == &p_ambw) {
-    if (check_opt_strings(p_ambw, p_ambw_values, FALSE) != OK)
+  } else if (varp == &p_ambw || (bool *)varp == &p_emoji) {
+    // 'ambiwidth'
+    if (check_opt_strings(p_ambw, p_ambw_values, false) != OK) {
       errmsg = e_invarg;
-    else if (set_chars_option(&p_lcs) != NULL)
+    } else if (set_chars_option(&p_lcs) != NULL) {
       errmsg = (char_u *)_("E834: Conflicts with value of 'listchars'");
-    else if (set_chars_option(&p_fcs) != NULL)
+    } else if (set_chars_option(&p_fcs) != NULL) {
       errmsg = (char_u *)_("E835: Conflicts with value of 'fillchars'");
+    }
   }
   /* 'background' */
   else if (varp == &p_bg) {
@@ -3658,14 +3658,16 @@ set_bool_option (
   /* when 'insertmode' is set from an autocommand need to do work here */
   else if ((int *)varp == &p_im) {
     if (p_im) {
-      if ((State & INSERT) == 0)
-        need_start_insertmode = TRUE;
-      stop_insert_mode = FALSE;
-    } else {
-      need_start_insertmode = FALSE;
-      stop_insert_mode = TRUE;
-      if (restart_edit != 0 && mode_displayed)
-        clear_cmdline = TRUE;           /* remove "(insert)" */
+      if ((State & INSERT) == 0) {
+        need_start_insertmode = true;
+      }
+      stop_insert_mode = false;
+    } else if (old_value) {  // only reset if it was set previously
+      need_start_insertmode = false;
+      stop_insert_mode = true;
+      if (restart_edit != 0 && mode_displayed) {
+        clear_cmdline = true;  // remove "(insert)"
+      }
       restart_edit = 0;
     }
   }
