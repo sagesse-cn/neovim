@@ -459,7 +459,7 @@ void normal_enter(bool cmdwin, bool noexmode)
   normal_state_init(&state);
   state.cmdwin = cmdwin;
   state.noexmode = noexmode;
-  state.toplevel = !cmdwin && !noexmode;
+  state.toplevel = (!cmdwin || cmdwin_result == 0) && !noexmode;
   state_enter(&state.state);
 }
 
@@ -1360,7 +1360,7 @@ static int normal_check(VimState *state)
   // Dict internally somewhere.
   // "may_garbage_collect" is reset in vgetc() which is invoked through
   // do_exmode() and normal_cmd().
-  may_garbage_collect = s->toplevel;
+  may_garbage_collect = !s->cmdwin && !s->noexmode;
 
   // Update w_curswant if w_set_curswant has been set.
   // Postponed until here to avoid computing w_virtcol too often.
@@ -7891,15 +7891,15 @@ static void nv_event(cmdarg_T *cap)
 {
   // Garbage collection should have been executed before blocking for events in
   // the `os_inchar` in `state_enter`, but we also disable it here in case the
-  // `os_inchar` branch was not executed(!queue_empty(loop.events), which could
-  // have `may_garbage_collect` set to true in `normal_check`).
+  // `os_inchar` branch was not executed (!multiqueue_empty(loop.events), which
+  // could have `may_garbage_collect` set to true in `normal_check`).
   //
   // That is because here we may run code that calls `os_inchar`
   // later(`f_confirm` or `get_keystroke` for example), but in these cases it is
   // not safe to perform garbage collection because there could be unreferenced
   // lists or dicts being used.
   may_garbage_collect = false;
-  queue_process_events(main_loop.events);
+  multiqueue_process_events(main_loop.events);
   cap->retval |= CA_COMMAND_BUSY;       // don't call edit() now
 }
 

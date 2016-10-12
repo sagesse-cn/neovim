@@ -19,13 +19,13 @@
 #include "nvim/api/private/helpers.h"
 #include "nvim/event/loop.h"
 #include "nvim/event/signal.h"
-#include "nvim/tui/tui.h"
-#include "nvim/tui/input.h"
 #include "nvim/os/input.h"
 #include "nvim/os/os.h"
 #include "nvim/strings.h"
 #include "nvim/ugrid.h"
-#include "nvim/ui_bridge.h"
+#include "nvim/tui/input.h"
+#include "nvim/tui/tui.h"
+#include "nvim/tui/ui_bridge.h"
 
 // Space reserved in the output buffer to restore the cursor to normal when
 // flushing. No existing terminal will require 32 bytes to do that.
@@ -67,7 +67,7 @@ typedef struct {
   struct {
     int enable_mouse, disable_mouse;
     int enable_bracketed_paste, disable_bracketed_paste;
-    int enter_insert_mode, enter_replace_mode, exit_insert_mode;
+    int set_cursor_shape_bar, set_cursor_shape_ul, set_cursor_shape_block;
     int set_rgb_foreground, set_rgb_background;
     int enable_focus_reporting, disable_focus_reporting;
   } unibi_ext;
@@ -124,9 +124,9 @@ static void terminfo_start(UI *ui)
   data->unibi_ext.disable_mouse = -1;
   data->unibi_ext.enable_bracketed_paste = -1;
   data->unibi_ext.disable_bracketed_paste = -1;
-  data->unibi_ext.enter_insert_mode = -1;
-  data->unibi_ext.enter_replace_mode = -1;
-  data->unibi_ext.exit_insert_mode = -1;
+  data->unibi_ext.set_cursor_shape_bar = -1;
+  data->unibi_ext.set_cursor_shape_ul = -1;
+  data->unibi_ext.set_cursor_shape_block = -1;
   data->unibi_ext.enable_focus_reporting = -1;
   data->unibi_ext.disable_focus_reporting = -1;
   data->out_fd = 1;
@@ -139,6 +139,8 @@ static void terminfo_start(UI *ui)
     data->ut = unibi_dummy();
   }
   fix_terminfo(data);
+  // Initialize the cursor shape.
+  unibi_out(ui, data->unibi_ext.set_cursor_shape_block);
   // Set 't_Co' from the result of unibilium & fix_terminfo.
   t_colors = unibi_get_num(data->ut, unibi_max_colors);
   // Enter alternate screen and clear
@@ -172,7 +174,7 @@ static void terminfo_stop(UI *ui)
   unibi_out(ui, data->unibi_ext.disable_bracketed_paste);
   // Disable focus reporting
   unibi_out(ui, data->unibi_ext.disable_focus_reporting);
-  flush_buf(ui);
+  flush_buf(ui, true);
   uv_tty_reset_mode();
   uv_close((uv_handle_t *)&data->output_handle, NULL);
   uv_run(&data->write_loop, UV_RUN_DEFAULT);
@@ -457,16 +459,16 @@ static void tui_mode_change(UI *ui, int mode)
 
   if (mode == INSERT) {
     if (data->showing_mode != INSERT) {
-      unibi_out(ui, data->unibi_ext.enter_insert_mode);
+      unibi_out(ui, data->unibi_ext.set_cursor_shape_bar);
     }
   } else if (mode == REPLACE) {
     if (data->showing_mode != REPLACE) {
-      unibi_out(ui, data->unibi_ext.enter_replace_mode);
+      unibi_out(ui, data->unibi_ext.set_cursor_shape_ul);
     }
   } else {
     assert(mode == NORMAL);
     if (data->showing_mode != NORMAL) {
-      unibi_out(ui, data->unibi_ext.exit_insert_mode);
+      unibi_out(ui, data->unibi_ext.set_cursor_shape_block);
     }
   }
   data->showing_mode = mode;
@@ -599,7 +601,7 @@ static void tui_flush(UI *ui)
 
   unibi_goto(ui, grid->row, grid->col);
 
-  flush_buf(ui);
+  flush_buf(ui, true);
 }
 
 static void suspend_event(void **argv)
@@ -628,8 +630,8 @@ static void tui_suspend(UI *ui)
   // kill(0, SIGTSTP) won't stop the UI thread, so we must poll for SIGCONT
   // before continuing. This is done in another callback to avoid
   // loop_poll_events recursion
-  queue_put_event(data->loop->fast_events,
-      event_create(1, suspend_event, 1, ui));
+  multiqueue_put_event(data->loop->fast_events,
+                       event_create(1, suspend_event, 1, ui));
 }
 
 static void tui_set_title(UI *ui, char *title)
@@ -772,7 +774,7 @@ static void out(void *ctx, const char *str, size_t len)
   size_t available = data->bufsize - data->bufpos;
 
   if (len > available) {
-    flush_buf(ui);
+    flush_buf(ui, false);
   }
 
   memcpy(data->buf + data->bufpos, str, len);
@@ -860,23 +862,23 @@ static void fix_terminfo(TUIData *data)
       || os_getenv("KONSOLE_DBUS_SESSION") != NULL) {
     // Konsole uses a proprietary escape code to set the cursor shape
     // and does not support DECSCUSR.
-    data->unibi_ext.enter_insert_mode = (int)unibi_add_ext_str(ut, NULL,
+    data->unibi_ext.set_cursor_shape_bar = (int)unibi_add_ext_str(ut, NULL,
         TMUX_WRAP("\x1b]50;CursorShape=1;BlinkingCursorEnabled=1\x07"));
-    data->unibi_ext.enter_replace_mode = (int)unibi_add_ext_str(ut, NULL,
+    data->unibi_ext.set_cursor_shape_ul = (int)unibi_add_ext_str(ut, NULL,
         TMUX_WRAP("\x1b]50;CursorShape=2;BlinkingCursorEnabled=1\x07"));
-    data->unibi_ext.exit_insert_mode = (int)unibi_add_ext_str(ut, NULL,
+    data->unibi_ext.set_cursor_shape_block = (int)unibi_add_ext_str(ut, NULL,
         TMUX_WRAP("\x1b]50;CursorShape=0;BlinkingCursorEnabled=0\x07"));
   } else if (!vte_version || atoi(vte_version) >= 3900) {
     // Assume that the terminal supports DECSCUSR unless it is an
     // old VTE based terminal.  This should not get wrapped for tmux,
     // which will handle it via its Ss/Se terminfo extension - usually
     // according to its terminal-overrides.
-    data->unibi_ext.enter_insert_mode = (int)unibi_add_ext_str(ut, NULL,
-                                                               "\x1b[5 q");
-    data->unibi_ext.enter_replace_mode = (int)unibi_add_ext_str(ut, NULL,
-                                                                "\x1b[3 q");
-    data->unibi_ext.exit_insert_mode = (int)unibi_add_ext_str(ut, NULL,
-                                                              "\x1b[2 q");
+    data->unibi_ext.set_cursor_shape_bar =
+      (int)unibi_add_ext_str(ut, NULL, "\x1b[5 q");
+    data->unibi_ext.set_cursor_shape_ul =
+      (int)unibi_add_ext_str(ut, NULL, "\x1b[3 q");
+    data->unibi_ext.set_cursor_shape_block =
+      (int)unibi_add_ext_str(ut, NULL, "\x1b[2 q");
   }
 
 end:
@@ -908,13 +910,13 @@ end:
   unibi_set_if_empty(ut, unibi_clr_eos, "\x1b[J");
 }
 
-static void flush_buf(UI *ui)
+static void flush_buf(UI *ui, bool toggle_cursor)
 {
   uv_write_t req;
   uv_buf_t buf;
   TUIData *data = ui->data;
 
-  if (!data->busy) {
+  if (toggle_cursor && !data->busy) {
     // not busy and the cursor is invisible(see below). Append a "cursor
     // normal" command to the end of the buffer.
     data->bufsize += CNORM_COMMAND_MAX_SIZE;
@@ -928,7 +930,7 @@ static void flush_buf(UI *ui)
   uv_run(&data->write_loop, UV_RUN_DEFAULT);
   data->bufpos = 0;
 
-  if (!data->busy) {
+  if (toggle_cursor && !data->busy) {
     // not busy and cursor is visible(see above), append a "cursor invisible"
     // command to the beginning of the buffer for the next flush
     unibi_out(ui, unibi_cursor_invisible);
