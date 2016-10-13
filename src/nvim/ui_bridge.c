@@ -1,4 +1,5 @@
-// UI wrapper for the built-in TUI. Sends UI requests to the TUI thread.
+// UI wrapper that sends UI requests to the UI thread.
+// Used by the built-in TUI and external libnvim-based UIs.
 
 #include <assert.h>
 #include <stdbool.h>
