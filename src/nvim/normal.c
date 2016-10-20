@@ -5934,8 +5934,7 @@ static void nv_replace(cmdarg_T *cap)
     set_last_insert(cap->nchar);
   }
 
-  foldUpdateAll(curwin);
-  foldOpenCursor();
+  foldUpdateAfterInsert();
 }
 
 /*
