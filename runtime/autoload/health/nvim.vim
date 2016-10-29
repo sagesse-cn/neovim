@@ -1,5 +1,18 @@
 let s:suggest_faq = 'See https://github.com/neovim/neovim/wiki/FAQ'
 
+function! s:check_config() abort
+  call health#report_start('Configuration')
+  let sensible_pi = globpath(&runtimepath, '**/sensible.vim', 1, 1)
+  if empty(sensible_pi)
+    call health#report_ok('no issues found')
+  else
+    call health#report_info("found sensible.vim plugin:\n".join(sensible_pi, "\n"))
+    call health#report_error("sensible.vim plugin is not needed; Nvim has the same defaults built-in."
+      \ ." Also, sensible.vim sets 'ttimeoutlen' to a sub-optimal value.",
+      \ ["Remove sensible.vim plugin, or wrap it in a `if !has('nvim')` check."])
+  endif
+endfunction
+
 " Load the remote plugin manifest file and check for unregistered plugins
 function! s:check_rplugin_manifest() abort
   call health#report_start('Remote Plugins')
@@ -93,7 +106,7 @@ function! s:check_tmux() abort
     call health#report_error('command failed: '.cmd."\n".out)
   elseif empty(tmux_esc_time)
     call health#report_error('escape-time is not set', suggestions)
-  elseif tmux_esc_time > 500
+  elseif tmux_esc_time > 300
     call health#report_error(
         \ 'escape-time ('.tmux_esc_time.') is higher than 300ms', suggestions)
   else
@@ -137,8 +150,9 @@ function! s:check_terminfo() abort
 endfunction
 
 function! health#nvim#check() abort
-  call s:check_rplugin_manifest()
+  call s:check_config()
   call s:check_performance()
-  call s:check_tmux()
+  call s:check_rplugin_manifest()
   call s:check_terminfo()
+  call s:check_tmux()
 endfunction
