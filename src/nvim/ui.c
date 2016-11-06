@@ -548,6 +548,8 @@ static void ui_mode_change(void)
     mode = INSERT;
   else if (real_state & CMDLINE)
     mode = CMDLINE;
+  else if (real_state & TERM_FOCUS)
+    mode = TERM_FOCUS;
   else
     mode = NORMAL;
   UI_CALL(mode_change, mode);
