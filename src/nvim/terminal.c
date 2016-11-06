@@ -388,6 +388,8 @@ void terminal_enter(void)
   showmode();
   ui_busy_start();
   redraw(false);
+  
+  ui_cursor_shape();
 
   s->state.execute = terminal_execute;
   state_enter(&s->state);
@@ -407,6 +409,8 @@ void terminal_enter(void)
       do_cmdline_cmd("bwipeout!");
     }
   }
+  
+  ui_cursor_shape();
 }
 
 static int terminal_execute(VimState *state, int key)
