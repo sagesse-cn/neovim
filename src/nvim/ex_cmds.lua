@@ -2194,7 +2194,7 @@ return {
     command='substitute',
     flags=bit.bor(RANGE, WHOLEFOLD, EXTRA, CMDWIN),
     addr_type=ADDR_LINES,
-    func='do_sub',
+    func='ex_substitute',
   },
   {
     command='sNext',
@@ -3185,7 +3185,7 @@ return {
     enum='CMD_and',
     flags=bit.bor(RANGE, WHOLEFOLD, EXTRA, CMDWIN, MODIFY),
     addr_type=ADDR_LINES,
-    func='do_sub',
+    func='ex_substitute',
   },
   {
     command='<',
@@ -3226,6 +3226,6 @@ return {
     enum='CMD_tilde',
     flags=bit.bor(RANGE, WHOLEFOLD, EXTRA, CMDWIN, MODIFY),
     addr_type=ADDR_LINES,
-    func='do_sub',
+    func='ex_substitute',
   },
 }
