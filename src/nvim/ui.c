@@ -540,18 +540,19 @@ static void ui_mode_change(void)
   // Use the real state here to get also VISUAL
   int real_state = get_real_state();
 
-  if ((real_state & REPLACE) == REPLACE)
+  if ((real_state & REPLACE) == REPLACE) {
     mode = REPLACE;
-  else if (real_state & VISUAL)
+  } else if (real_state & VISUAL) {
     mode = VISUAL;
-  else if (real_state & INSERT)
+  } else if (real_state & INSERT) {
     mode = INSERT;
-  else if (real_state & CMDLINE)
+  } else if (real_state & CMDLINE) {
     mode = CMDLINE;
-  else if (real_state & TERM_FOCUS)
+  } else if (real_state & TERM_FOCUS) {
     mode = TERM_FOCUS;
-  else
+  } else {
     mode = NORMAL;
+  }
   UI_CALL(mode_change, mode);
   conceal_check_cursur_line();
 }
