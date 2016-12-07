@@ -6561,11 +6561,7 @@ static bool apply_autocmds_group(event_T event, char_u *fname, char_u *fname_io,
   static int filechangeshell_busy = FALSE;
   proftime_T wait_time;
   bool did_save_redobuff = false;
-
-#ifdef CUSTOM_UI
-  custom_ui_autocmds_groups(event, fname, fname_io, group, force, buf, eap);
-#endif
-  
+    
   /*
    * Quickly return if there are no autocommands for this event or
    * autocommands are blocked.
@@ -6868,7 +6864,11 @@ BYPASS_AU:
    * are deleted. */
   if (event == EVENT_BUFWIPEOUT && buf != NULL)
     aubuflocal_remove(buf);
-
+    
+#ifdef CUSTOM_UI
+  custom_ui_autocmds_groups(event, fname, fname_io, group, force, buf, eap);
+#endif
+  
   return retval;
 }
 
