@@ -111,8 +111,8 @@ set(LIBTERMKEY_SHA256 239746de41c845af52bb3c14055558f743292dd6c24ac26c2d6567a5a6
 set(LIBVTERM_URL https://github.com/neovim/libvterm/archive/a9c7c6fd20fa35e0ad3e0e98901ca12dfca9c25c.tar.gz)
 set(LIBVTERM_SHA256 1a4272be91d9614dc183a503786df83b6584e4afaab7feaaa5409f841afbd796)
 
-set(JEMALLOC_URL https://github.com/jemalloc/jemalloc/releases/download/4.3.1/jemalloc-4.3.1.tar.bz2)
-set(JEMALLOC_SHA256 f7bb183ad8056941791e0f075b802e8ff10bd6e2d904e682f87c8f6a510c278b)
+set(JEMALLOC_URL https://github.com/jemalloc/jemalloc/releases/download/4.4.0/jemalloc-4.4.0.tar.bz2)
+set(JEMALLOC_SHA256 a7aea63e9718d2f1adf81d87e3df3cb1b58deb86fc77bad5d702c4c59687b033)
 
 set(LUV_URL https://github.com/luvit/luv/archive/1.9.1-0.tar.gz)
 set(LUV_SHA256 86a199403856018cd8e5529c8527450c83664a3d36f52d5253cbe909ea6c5a06)
