@@ -1,0 +1,110 @@
+# This file is a shell script that caches the results of configure
+# tests run on this system so they can be shared between configure
+# scripts and configure runs, see configure's option --config-cache.
+# It is not useful on other systems.  If it contains results you don't
+# want to keep, you may remove or edit it.
+#
+# config.status only pays attention to the cache file if you give it
+# the --recheck option to rerun configure.
+#
+# `ac_cv_env_foo' variables (set or unset) will be overridden when
+# loading this file, other *unset* `ac_cv_foo' will be assigned the
+# following values.
+
+ac_cv_big_endian=${ac_cv_big_endian=0}
+ac_cv_build=${ac_cv_build=x86_64-apple-darwin16.3.0}
+ac_cv_c_bigendian=${ac_cv_c_bigendian=no}
+ac_cv_c_compiler_gnu=${ac_cv_c_compiler_gnu=yes}
+ac_cv_env_CC_set=set
+ac_cv_env_CC_value=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc
+ac_cv_env_CFLAGS_set=
+ac_cv_env_CFLAGS_value=
+ac_cv_env_CPPFLAGS_set=
+ac_cv_env_CPPFLAGS_value=
+ac_cv_env_CPP_set=
+ac_cv_env_CPP_value=
+ac_cv_env_LDFLAGS_set=
+ac_cv_env_LDFLAGS_value=
+ac_cv_env_LIBS_set=
+ac_cv_env_LIBS_value=
+ac_cv_env_build_alias_set=
+ac_cv_env_build_alias_value=
+ac_cv_env_host_alias_set=
+ac_cv_env_host_alias_value=
+ac_cv_env_target_alias_set=
+ac_cv_env_target_alias_value=
+ac_cv_func__malloc_thread_cleanup=${ac_cv_func__malloc_thread_cleanup=no}
+ac_cv_func__pthread_mutex_init_calloc_cb=${ac_cv_func__pthread_mutex_init_calloc_cb=no}
+ac_cv_func_issetugid=${ac_cv_func_issetugid=yes}
+ac_cv_func_memalign=${ac_cv_func_memalign=no}
+ac_cv_func_sbrk=${ac_cv_func_sbrk=yes}
+ac_cv_func_secure_getenv=${ac_cv_func_secure_getenv=no}
+ac_cv_func_valloc=${ac_cv_func_valloc=yes}
+ac_cv_header_inttypes_h=${ac_cv_header_inttypes_h=yes}
+ac_cv_header_malloc_h=${ac_cv_header_malloc_h=no}
+ac_cv_header_memory_h=${ac_cv_header_memory_h=yes}
+ac_cv_header_pthread_h=${ac_cv_header_pthread_h=yes}
+ac_cv_header_stdbool_h=${ac_cv_header_stdbool_h=yes}
+ac_cv_header_stdc=${ac_cv_header_stdc=yes}
+ac_cv_header_stdint_h=${ac_cv_header_stdint_h=yes}
+ac_cv_header_stdlib_h=${ac_cv_header_stdlib_h=yes}
+ac_cv_header_string_h=${ac_cv_header_string_h=yes}
+ac_cv_header_strings_h=${ac_cv_header_strings_h=yes}
+ac_cv_header_sys_stat_h=${ac_cv_header_sys_stat_h=yes}
+ac_cv_header_sys_types_h=${ac_cv_header_sys_types_h=yes}
+ac_cv_header_unistd_h=${ac_cv_header_unistd_h=yes}
+ac_cv_host=${ac_cv_host=x86_64-apple-darwin16.3.0}
+ac_cv_lib_pthread_pthread_create=${ac_cv_lib_pthread_pthread_create=yes}
+ac_cv_objext=${ac_cv_objext=o}
+ac_cv_path_AUTOCONF=${ac_cv_path_AUTOCONF=/usr/local/bin/autoconf}
+ac_cv_path_EGREP=${ac_cv_path_EGREP='/usr/bin/grep -E'}
+ac_cv_path_GREP=${ac_cv_path_GREP=/usr/bin/grep}
+ac_cv_path_LD=${ac_cv_path_LD=/usr/bin/ld}
+ac_cv_path_XSLTPROC=${ac_cv_path_XSLTPROC=/usr/bin/xsltproc}
+ac_cv_path_install=${ac_cv_path_install='/usr/local/bin/ginstall -c'}
+ac_cv_prog_CPP=${ac_cv_prog_CPP='/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc -E'}
+ac_cv_prog_ac_ct_AR=${ac_cv_prog_ac_ct_AR=ar}
+ac_cv_prog_ac_ct_CC=${ac_cv_prog_ac_ct_CC=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/cc}
+ac_cv_prog_ac_ct_RANLIB=${ac_cv_prog_ac_ct_RANLIB=ranlib}
+ac_cv_prog_cc_c89=${ac_cv_prog_cc_c89=}
+ac_cv_prog_cc_g=${ac_cv_prog_cc_g=yes}
+ac_cv_search_clock_gettime=${ac_cv_search_clock_gettime='none required'}
+ac_cv_search_log=${ac_cv_search_log='none required'}
+ac_cv_sizeof_int=${ac_cv_sizeof_int=4}
+ac_cv_sizeof_intmax_t=${ac_cv_sizeof_intmax_t=8}
+ac_cv_sizeof_long=${ac_cv_sizeof_long=8}
+ac_cv_sizeof_long_long=${ac_cv_sizeof_long_long=8}
+ac_cv_sizeof_void_p=${ac_cv_sizeof_void_p=8}
+ac_cv_type__Bool=${ac_cv_type__Bool=yes}
+je_cv_alloc_size=${je_cv_alloc_size=no}
+je_cv_atomic9=${je_cv_atomic9=no}
+je_cv_attribute=${je_cv_attribute=yes}
+je_cv_builtin_clz=${je_cv_builtin_clz=yes}
+je_cv_c11atomics=${je_cv_c11atomics=yes}
+je_cv_cflags_appended=${je_cv_cflags_appended=-Werror}
+je_cv_clock_monotonic=${je_cv_clock_monotonic=no}
+je_cv_clock_monotonic_coarse=${je_cv_clock_monotonic_coarse=no}
+je_cv_cray=${je_cv_cray=no}
+je_cv_cray_prgenv_wrapper=${je_cv_cray_prgenv_wrapper=}
+je_cv_format_gnu_printf=${je_cv_format_gnu_printf=no}
+je_cv_format_printf=${je_cv_format_printf=yes}
+je_cv_gcc_builtin_ffsl=${je_cv_gcc_builtin_ffsl=yes}
+je_cv_gcc_builtin_unreachable=${je_cv_gcc_builtin_unreachable=yes}
+je_cv_glibc_malloc_hook=${je_cv_glibc_malloc_hook=no}
+je_cv_glibc_memalign_hook=${je_cv_glibc_memalign_hook=no}
+je_cv_lg_page=${je_cv_lg_page=12}
+je_cv_mach_absolute_time=${je_cv_mach_absolute_time=yes}
+je_cv_madv_dontneed=${je_cv_madv_dontneed=yes}
+je_cv_madv_free=${je_cv_madv_free=yes}
+je_cv_madvise=${je_cv_madvise=yes}
+je_cv_os_unfair_lock=${je_cv_os_unfair_lock=yes}
+je_cv_osatomic=${je_cv_osatomic=yes}
+je_cv_osspin=${je_cv_osspin=yes}
+je_cv_pause=${je_cv_pause=yes}
+je_cv_pthread_atfork=${je_cv_pthread_atfork=yes}
+je_cv_pthread_mutex_adaptive_np=${je_cv_pthread_mutex_adaptive_np=no}
+je_cv_syscall=${je_cv_syscall=no}
+je_cv_thp=${je_cv_thp=no}
+je_cv_tls_model=${je_cv_tls_model=yes}
+je_cv_utrace=${je_cv_utrace=no}
+je_cv_valgrind=${je_cv_valgrind=no}
