@@ -1,4 +1,5 @@
 require('coxpcall')
+local luv = require('luv')
 local lfs = require('lfs')
 local global_helpers = require('test.helpers')
 
@@ -241,6 +242,26 @@ local function connect(file_or_address)
   local stream = (addr and port) and TcpStream.open(addr, port) or
     SocketStream.open(file_or_address)
   return Session.new(stream)
+end
+
+-- Calls fn() until it succeeds, up to `max` times or until `max_ms`
+-- milliseconds have passed.
+local function retry(max, max_ms, fn)
+  local tries = 1
+  local timeout = (max_ms and max_ms > 0) and max_ms or 10000
+  local start_time = luv.now()
+  while true do
+    local status, result = pcall(fn)
+    if status then
+      return result
+    end
+    if (max and tries >= max) or (luv.now() - start_time > timeout) then
+      break
+    end
+    tries = tries + 1
+  end
+  -- Do not use pcall() for the final attempt, let the failure bubble up.
+  return fn()
 end
 
 local function clear(...)
@@ -530,6 +551,7 @@ return function(after_each)
     prepend_argv = prepend_argv,
     clear = clear,
     connect = connect,
+    retry = retry,
     spawn = spawn,
     dedent = dedent,
     source = source,

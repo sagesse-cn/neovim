@@ -2466,7 +2466,7 @@ do_mouse (
                            (int) strlen(tab_page_click_defs[mouse_col].func),
                            &rettv, ARRAY_SIZE(argv), argv,
                            curwin->w_cursor.lnum, curwin->w_cursor.lnum,
-                           &doesrange, true, NULL);
+                           &doesrange, true, NULL, NULL);
           clear_tv(&rettv);
           break;
         }
@@ -3646,10 +3646,11 @@ nv_gd (
   size_t len;
   char_u *ptr;
   if ((len = find_ident_under_cursor(&ptr, FIND_IDENT)) == 0
-      || !find_decl(ptr, len, nchar == 'd', thisblock, 0))
+      || !find_decl(ptr, len, nchar == 'd', thisblock, SEARCH_START)) {
     clearopbeep(oap);
-  else if ((fdo_flags & FDO_SEARCH) && KeyTyped && oap->op_type == OP_NOP)
+  } else if ((fdo_flags & FDO_SEARCH) && KeyTyped && oap->op_type == OP_NOP) {
     foldOpenCursor();
+  }
 }
 
 /*

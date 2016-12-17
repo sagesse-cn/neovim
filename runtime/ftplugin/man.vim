@@ -1,7 +1,7 @@
 " Maintainer:          Anmol Sethi <anmol@aubble.com>
 " Previous Maintainer: SungHyun Nam <goweol@gmail.com>
 
-if exists('b:did_ftplugin')
+if exists('b:did_ftplugin') || &filetype !=# 'man'
   finish
 endif
 let b:did_ftplugin = 1
@@ -31,8 +31,8 @@ setlocal nolist
 setlocal nofoldenable
 
 if !exists('g:no_plugin_maps') && !exists('g:no_man_maps')
-  nmap     <silent> <buffer> <C-]>      :Man<CR>
-  nmap     <silent> <buffer> K          :Man<CR>
+  nnoremap <silent> <buffer> <C-]>      :Man<CR>
+  nnoremap <silent> <buffer> K          :Man<CR>
   nnoremap <silent> <buffer> <C-T>      :call man#pop_tag()<CR>
   if s:pager
     nnoremap <silent> <buffer> <nowait> q :q<CR>
