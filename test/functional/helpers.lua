@@ -14,12 +14,16 @@ local neq = global_helpers.neq
 local eq = global_helpers.eq
 local ok = global_helpers.ok
 
+local start_dir = lfs.currentdir()
 local nvim_prog = os.getenv('NVIM_PROG') or 'build/bin/nvim'
 local nvim_argv = {nvim_prog, '-u', 'NONE', '-i', 'NONE', '-N',
                    '--cmd', 'set shortmess+=I background=light noswapfile noautoindent laststatus=1 undodir=. directory=. viewdir=. backupdir=.',
                    '--embed'}
 
 local mpack = require('mpack')
+
+local tmpname = global_helpers.tmpname
+local uname = global_helpers.uname
 
 -- Formulate a path to the directory containing nvim.  We use this to
 -- help run test executables.  It helps to keep the tests working, even
@@ -334,44 +338,6 @@ local function write_file(name, text, dont_dedent)
   file:close()
 end
 
--- Tries to get platform name from $SYSTEM_NAME, uname; fallback is "Windows".
-local uname = (function()
-  local platform = nil
-  return (function()
-    if platform then
-      return platform
-    end
-
-    platform = os.getenv("SYSTEM_NAME")
-    if platform then
-      return platform
-    end
-
-    local status, f = pcall(io.popen, "uname -s")
-    if status then
-      platform = f:read("*l")
-    else
-      platform = 'Windows'
-    end
-    return platform
-  end)
-end)()
-
-local function tmpname()
-  local fname = os.tmpname()
-  if uname() == 'Windows' and fname:sub(1, 2) == '\\s' then
-    -- In Windows tmpname() returns a filename starting with
-    -- special sequence \s, prepend $TEMP path
-    local tmpdir = os.getenv('TEMP')
-    return tmpdir..fname
-  elseif fname:match('^/tmp') and uname() == 'Darwin' then
-    -- In OS X /tmp links to /private/tmp
-    return '/private'..fname
-  else
-    return fname
-  end
-end
-
 local function source(code)
   local fname = tmpname()
   write_file(fname, code)
@@ -475,6 +441,12 @@ end
 
 local function rmdir(path)
   local ret, _ = pcall(do_rmdir, path)
+  if not ret and os_name() == "windows" then
+    -- Maybe "Permission denied"; try again after changing the nvim
+    -- process to the top-level directory.
+    nvim_command([[exe 'cd '.fnameescape(']]..start_dir.."')")
+    ret, _ = pcall(do_rmdir, path)
+  end
   -- During teardown, the nvim process may not exit quickly enough, then rmdir()
   -- will fail (on Windows).
   if not ret then  -- Try again.
@@ -520,17 +492,33 @@ local function create_callindex(func)
 end
 
 -- Helper to skip tests. Returns true in Windows systems.
--- pending_func is pending() from busted
-local function pending_win32(pending_func)
+-- pending_fn is pending() from busted
+local function pending_win32(pending_fn)
   clear()
   if uname() == 'Windows' then
-    if pending_func ~= nil then
-      pending_func('FIXME: Windows', function() end)
+    if pending_fn ~= nil then
+      pending_fn('FIXME: Windows', function() end)
     end
     return true
   else
     return false
   end
+end
+
+-- Calls pending() and returns `true` if the system is too slow to
+-- run fragile or expensive tests. Else returns `false`.
+local function skip_fragile(pending_fn, cond)
+  if pending_fn == nil or type(pending_fn) ~= type(function()end) then
+    error("invalid pending_fn")
+  end
+  if cond then
+    pending_fn("skipped (test is fragile on this system)", function() end)
+    return true
+  elseif os.getenv("TEST_SKIP_FRAGILE") then
+    pending_fn("skipped (TEST_SKIP_FRAGILE)", function() end)
+    return true
+  end
+  return false
 end
 
 local funcs = create_callindex(nvim_call)
@@ -601,6 +589,7 @@ return function(after_each)
     curwinmeths = curwinmeths,
     curtabmeths = curtabmeths,
     pending_win32 = pending_win32,
+    skip_fragile = skip_fragile,
     tmpname = tmpname,
     NIL = mpack.NIL,
   }

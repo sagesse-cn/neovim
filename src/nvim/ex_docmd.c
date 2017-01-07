@@ -1374,7 +1374,7 @@ static char_u * do_one_cmd(char_u **cmdlinep,
         }
         continue;
       }
-      if (!checkforcmd(&ea.cmd, "noswapfile", 6)) {
+      if (!checkforcmd(&ea.cmd, "noswapfile", 3)) {
         break;
       }
       cmdmod.noswapfile = true;
@@ -1711,7 +1711,7 @@ static char_u * do_one_cmd(char_u **cmdlinep,
     xfree(p);
     // If the autocommands did something and didn't cause an error, try
     // finding the command again.
-    p = (ret && !aborting()) ? find_command(&ea, NULL) : NULL;
+    p = (ret && !aborting()) ? find_command(&ea, NULL) : ea.cmd;
   }
 
   if (p == NULL) {

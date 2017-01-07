@@ -22,12 +22,21 @@ function! s:try_cmd(cmd, ...)
   let argv = split(a:cmd, " ")
   let out = a:0 ? systemlist(argv, a:1, 1) : systemlist(argv, [''], 1)
   if v:shell_error
-    echohl WarningMsg
-    echo "clipboard: error: ".(len(out) ? out[0] : '')
-    echohl None
+    if !exists('s:did_error_try_cmd')
+      echohl WarningMsg
+      echomsg "clipboard: error: ".(len(out) ? out[0] : '')
+      echohl None
+      let s:did_error_try_cmd = 1
+    endif
     return 0
   endif
   return out
+endfunction
+
+" Returns TRUE if `cmd` exits with success, else FALSE.
+function! s:cmd_ok(cmd)
+  call system(a:cmd)
+  return v:shell_error == 0
 endfunction
 
 let s:cache_enabled = 1
@@ -45,7 +54,7 @@ function! provider#clipboard#Executable() abort
     let s:paste['*'] = s:paste['+']
     let s:cache_enabled = 0
     return 'pbcopy'
-  elseif exists('$DISPLAY') && executable('xsel')
+  elseif exists('$DISPLAY') && executable('xsel') && s:cmd_ok('xsel -o -b')
     let s:copy['+'] = 'xsel --nodetach -i -b'
     let s:paste['+'] = 'xsel -o -b'
     let s:copy['*'] = 'xsel --nodetach -i -p'

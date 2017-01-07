@@ -5162,12 +5162,18 @@ dict_equal (
   dictitem_T  *item2;
   int todo;
 
-  if (d1 == NULL || d2 == NULL)
-    return FALSE;
-  if (d1 == d2)
-    return TRUE;
-  if (dict_len(d1) != dict_len(d2))
-    return FALSE;
+  if (d1 == NULL && d2 == NULL) {
+    return true;
+  }
+  if (d1 == NULL || d2 == NULL) {
+    return false;
+  }
+  if (d1 == d2) {
+    return true;
+  }
+  if (dict_len(d1) != dict_len(d2)) {
+    return false;
+  }
 
   todo = (int)d1->dv_hashtab.ht_used;
   for (hi = d1->dv_hashtab.ht_array; todo > 0; ++hi) {
@@ -6669,9 +6675,12 @@ dictitem_T *dict_find(dict_T *d, char_u *key, int len)
   char_u      *tofree = NULL;
   hashitem_T  *hi;
 
-  if (len < 0)
+  if (d == NULL) {
+    return NULL;
+  }
+  if (len < 0) {
     akey = key;
-  else if (len >= AKEYLEN) {
+  } else if (len >= AKEYLEN) {
     tofree = akey = vim_strnsave(key, len);
   } else {
     /* Avoid a malloc/free by using buf[]. */
@@ -9242,7 +9251,7 @@ static void filter_map(typval_T *argvars, typval_T *rettv, int map)
   dict_T      *d = NULL;
   typval_T save_val;
   typval_T save_key;
-  int rem;
+  int rem = false;
   int todo;
   char_u      *ermsg = (char_u *)(map ? "map()" : "filter()");
   char_u      *arg_errmsg = (char_u *)(map ? N_("map() argument")
@@ -10067,7 +10076,7 @@ static void f_getbufvar(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     } else if (STRCMP(varname, "changedtick") == 0) {
       rettv->v_type = VAR_NUMBER;
       rettv->vval.v_number = curbuf->b_changedtick;
-      done = TRUE;
+      done = true;
     } else {
       /* Look up the variable. */
       /* Let getbufvar({nr}, "") return the "b:" dictionary. */
@@ -15067,7 +15076,6 @@ static void f_serverstop(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 static void f_setbufvar(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 {
   buf_T       *buf;
-  aco_save_T aco;
   char_u      *varname, *bufvarname;
   typval_T    *varp;
   char_u nbuf[NUMBUFLEN];
@@ -15080,29 +15088,34 @@ static void f_setbufvar(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   varp = &argvars[2];
 
   if (buf != NULL && varname != NULL && varp != NULL) {
-    /* set curbuf to be our buf, temporarily */
-    aucmd_prepbuf(&aco, buf);
-
     if (*varname == '&') {
       long numval;
       char_u      *strval;
-      int error = FALSE;
+      int error = false;
+      aco_save_T  aco;
+
+      // set curbuf to be our buf, temporarily
+      aucmd_prepbuf(&aco, buf);
 
       ++varname;
       numval = get_tv_number_chk(varp, &error);
       strval = get_tv_string_buf_chk(varp, nbuf);
       if (!error && strval != NULL)
         set_option_value(varname, numval, strval, OPT_LOCAL);
+
+      // reset notion of buffer
+      aucmd_restbuf(&aco);
     } else {
+      buf_T *save_curbuf = curbuf;
+
       bufvarname = xmalloc(STRLEN(varname) + 3);
+      curbuf = buf;
       STRCPY(bufvarname, "b:");
       STRCPY(bufvarname + 2, varname);
       set_var(bufvarname, varp, TRUE);
       xfree(bufvarname);
+      curbuf = save_curbuf;
     }
-
-    /* reset notion of buffer */
-    aucmd_restbuf(&aco);
   }
 }
 
@@ -15519,7 +15532,10 @@ static void f_setreg(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   }
 
   if (argvars[1].v_type == VAR_LIST) {
-    int len = argvars[1].vval.v_list->lv_len;
+    list_T *ll = argvars[1].vval.v_list;
+    // If the list is NULL handle like an empty list.
+    int len = ll == NULL ? 0 : ll->lv_len;
+
     // First half: use for pointers to result lines; second half: use for
     // pointers to allocated copies.
     char_u **lstval = xmalloc(sizeof(char_u *) * ((len + 1) * 2));
@@ -15528,7 +15544,7 @@ static void f_setreg(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     char_u **curallocval = allocval;
 
     char_u buf[NUMBUFLEN];
-    for (listitem_T *li = argvars[1].vval.v_list->lv_first;
+    for (listitem_T *li = ll == NULL ? NULL : ll->lv_first;
          li != NULL;
          li = li->li_next) {
       char_u *strval = get_tv_string_buf_chk(&li->li_tv, buf);
@@ -17250,14 +17266,6 @@ static void f_termopen(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   data->refcount++;
 
   return;
-}
-
-/*
- * "test(list)" function: Just checking the walls...
- */
-static void f_test(typval_T *argvars, typval_T *rettv, FunPtr fptr)
-{
-  /* Used for unit testing.  Change the code below to your liking. */
 }
 
 static bool callback_from_typval(Callback *callback, typval_T *arg)
@@ -19037,124 +19045,200 @@ void free_tv(typval_T *varp)
 
 #define TYPVAL_ENCODE_ALLOW_SPECIALS false
 
-#define TYPVAL_ENCODE_CONV_NIL() \
+#define TYPVAL_ENCODE_CONV_NIL(tv) \
     do { \
       tv->vval.v_special = kSpecialVarFalse; \
       tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_BOOL(ignored) \
-    TYPVAL_ENCODE_CONV_NIL()
+#define TYPVAL_ENCODE_CONV_BOOL(tv, num) \
+    TYPVAL_ENCODE_CONV_NIL(tv)
 
-#define TYPVAL_ENCODE_CONV_NUMBER(ignored) \
+#define TYPVAL_ENCODE_CONV_NUMBER(tv, num) \
     do { \
-      (void)ignored; \
+      (void)num; \
       tv->vval.v_number = 0; \
       tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_UNSIGNED_NUMBER(ignored) \
-    assert(false)
+#define TYPVAL_ENCODE_CONV_UNSIGNED_NUMBER(tv, num)
 
-#define TYPVAL_ENCODE_CONV_FLOAT(ignored) \
+#define TYPVAL_ENCODE_CONV_FLOAT(tv, flt) \
     do { \
       tv->vval.v_float = 0; \
       tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_STRING(str, ignored) \
+#define TYPVAL_ENCODE_CONV_STRING(tv, buf, len) \
     do { \
-      xfree(str); \
+      xfree(buf); \
       tv->vval.v_string = NULL; \
       tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_STR_STRING(ignored1, ignored2)
+#define TYPVAL_ENCODE_CONV_STR_STRING(tv, buf, len)
 
-#define TYPVAL_ENCODE_CONV_EXT_STRING(ignored1, ignored2, ignored3)
+#define TYPVAL_ENCODE_CONV_EXT_STRING(tv, buf, len, type)
 
-#define TYPVAL_ENCODE_CONV_FUNC(fun) \
+static inline int _nothing_conv_func_start(typval_T *const tv,
+                                           char_u *const fun)
+  FUNC_ATTR_WARN_UNUSED_RESULT FUNC_ATTR_ALWAYS_INLINE FUNC_ATTR_NONNULL_ARG(1)
+{
+  tv->v_lock = VAR_UNLOCKED;
+  if (tv->v_type == VAR_PARTIAL) {
+    partial_T *const pt_ = tv->vval.v_partial;
+    if (pt_ != NULL && pt_->pt_refcount > 1) {
+      pt_->pt_refcount--;
+      tv->vval.v_partial = NULL;
+      return OK;
+    }
+  } else {
+    func_unref(fun);
+    if (fun != empty_string) {
+      xfree(fun);
+    }
+    tv->vval.v_string = NULL;
+  }
+  return NOTDONE;
+}
+#define TYPVAL_ENCODE_CONV_FUNC_START(tv, fun) \
     do { \
-      func_unref(fun); \
-      if (fun != empty_string) { \
-        xfree(fun); \
+      if (_nothing_conv_func_start(tv, fun) != NOTDONE) { \
+        return OK; \
       } \
-      tv->vval.v_string = NULL; \
-      tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_PARTIAL(pt) \
-    do { \
-      partial_unref(pt); \
-      pt = NULL; \
-      tv->v_lock = VAR_UNLOCKED; \
-    } while (0)
+#define TYPVAL_ENCODE_CONV_FUNC_BEFORE_ARGS(tv, len)
+#define TYPVAL_ENCODE_CONV_FUNC_BEFORE_SELF(tv, len)
 
-#define TYPVAL_ENCODE_CONV_EMPTY_LIST() \
+static inline void _nothing_conv_func_end(typval_T *const tv, const int copyID)
+  FUNC_ATTR_ALWAYS_INLINE FUNC_ATTR_NONNULL_ALL
+{
+  if (tv->v_type == VAR_PARTIAL) {
+    partial_T *const pt = tv->vval.v_partial;
+    if (pt == NULL) {
+      return;
+    }
+    // Dictionary should already be freed by the time.
+    // If it was not freed then it is a part of the reference cycle.
+    assert(pt->pt_dict == NULL || pt->pt_dict->dv_copyID == copyID);
+    pt->pt_dict = NULL;
+    // As well as all arguments.
+    pt->pt_argc = 0;
+    assert(pt->pt_refcount <= 1);
+    partial_unref(pt);
+    tv->vval.v_partial = NULL;
+    assert(tv->v_lock == VAR_UNLOCKED);
+  }
+}
+#define TYPVAL_ENCODE_CONV_FUNC_END(tv) _nothing_conv_func_end(tv, copyID)
+
+#define TYPVAL_ENCODE_CONV_EMPTY_LIST(tv) \
     do { \
       list_unref(tv->vval.v_list); \
       tv->vval.v_list = NULL; \
       tv->v_lock = VAR_UNLOCKED; \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_EMPTY_DICT() \
+#define TYPVAL_ENCODE_CONV_EMPTY_DICT(tv, dict) \
     do { \
-      dict_unref(tv->vval.v_dict); \
-      tv->vval.v_dict = NULL; \
-      tv->v_lock = VAR_UNLOCKED; \
-    } while (0)
-
-#define TYPVAL_ENCODE_CONV_LIST_START(ignored) \
-    do { \
-      if (tv->vval.v_list->lv_refcount > 1) { \
-        tv->vval.v_list->lv_refcount--; \
-        tv->vval.v_list = NULL; \
-        tv->v_lock = VAR_UNLOCKED; \
-        return OK; \
+      assert((void *)&dict != (void *)&TYPVAL_ENCODE_NODICT_VAR); \
+      dict_unref((dict_T *)dict); \
+      *((dict_T **)&dict) = NULL; \
+      if (tv != NULL) { \
+        ((typval_T *)tv)->v_lock = VAR_UNLOCKED; \
       } \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_LIST_BETWEEN_ITEMS()
-
-#define TYPVAL_ENCODE_CONV_LIST_END() \
+static inline int _nothing_conv_list_start(typval_T *const tv)
+  FUNC_ATTR_ALWAYS_INLINE FUNC_ATTR_WARN_UNUSED_RESULT
+{
+  if (tv == NULL) {
+    return NOTDONE;
+  }
+  tv->v_lock = VAR_UNLOCKED;
+  if (tv->vval.v_list->lv_refcount > 1) {
+    tv->vval.v_list->lv_refcount--;
+    tv->vval.v_list = NULL;
+    return OK;
+  }
+  return NOTDONE;
+}
+#define TYPVAL_ENCODE_CONV_LIST_START(tv, len) \
     do { \
-      typval_T *const cur_tv = cur_mpsv->tv; \
-      assert(cur_tv->v_type == VAR_LIST); \
-      list_unref(cur_tv->vval.v_list); \
-      cur_tv->vval.v_list = NULL; \
-      cur_tv->v_lock = VAR_UNLOCKED; \
-    } while (0)
-
-#define TYPVAL_ENCODE_CONV_DICT_START(ignored) \
-    do { \
-      if (tv->vval.v_dict->dv_refcount > 1) { \
-        tv->vval.v_dict->dv_refcount--; \
-        tv->vval.v_dict = NULL; \
-        tv->v_lock = VAR_UNLOCKED; \
-        return OK; \
+      if (_nothing_conv_list_start(tv) != NOTDONE) { \
+        goto typval_encode_stop_converting_one_item; \
       } \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_SPECIAL_DICT_KEY_CHECK(ignored1, ignored2)
+#define TYPVAL_ENCODE_CONV_LIST_BETWEEN_ITEMS(tv)
 
-#define TYPVAL_ENCODE_CONV_DICT_AFTER_KEY()
+static inline void _nothing_conv_list_end(typval_T *const tv)
+  FUNC_ATTR_ALWAYS_INLINE
+{
+  if (tv == NULL) {
+    return;
+  }
+  assert(tv->v_type == VAR_LIST);
+  list_T *const list = tv->vval.v_list;
+  list_unref(list);
+  tv->vval.v_list = NULL;
+}
+#define TYPVAL_ENCODE_CONV_LIST_END(tv) _nothing_conv_list_end(tv)
 
-#define TYPVAL_ENCODE_CONV_DICT_BETWEEN_ITEMS()
-
-#define TYPVAL_ENCODE_CONV_DICT_END() \
+static inline int _nothing_conv_dict_start(typval_T *const tv,
+                                           dict_T **const dictp,
+                                           const void *const nodictvar)
+  FUNC_ATTR_ALWAYS_INLINE FUNC_ATTR_WARN_UNUSED_RESULT
+{
+  if (tv != NULL) {
+    tv->v_lock = VAR_UNLOCKED;
+  }
+  if ((const void *)dictp != nodictvar && (*dictp)->dv_refcount > 1) {
+    (*dictp)->dv_refcount--;
+    *dictp = NULL;
+    return OK;
+  }
+  return NOTDONE;
+}
+#define TYPVAL_ENCODE_CONV_DICT_START(tv, dict, len) \
     do { \
-      typval_T *const cur_tv = cur_mpsv->tv; \
-      assert(cur_tv->v_type == VAR_DICT); \
-      dict_unref(cur_tv->vval.v_dict); \
-      cur_tv->vval.v_dict = NULL; \
-      cur_tv->v_lock = VAR_UNLOCKED; \
+      if (_nothing_conv_dict_start(tv, (dict_T **)&dict, \
+                                   (void *)&TYPVAL_ENCODE_NODICT_VAR) \
+          != NOTDONE) { \
+        goto typval_encode_stop_converting_one_item; \
+      } \
     } while (0)
 
-#define TYPVAL_ENCODE_CONV_RECURSE(ignored1, ignored2)
+#define TYPVAL_ENCODE_SPECIAL_DICT_KEY_CHECK(tv, dict)
+#define TYPVAL_ENCODE_CONV_DICT_AFTER_KEY(tv, dict)
+#define TYPVAL_ENCODE_CONV_DICT_BETWEEN_ITEMS(tv, dict)
 
-// nothing_convert_one_value()
-// encode_vim_to_nothing()
-TYPVAL_ENCODE_DEFINE_CONV_FUNCTIONS(static, nothing, void *, ignored)
+static inline void _nothing_conv_dict_end(typval_T *const tv,
+                                          dict_T **const dictp,
+                                          const void *const nodictvar)
+  FUNC_ATTR_ALWAYS_INLINE
+{
+  if ((const void *)dictp != nodictvar) {
+    dict_unref(*dictp);
+    *dictp = NULL;
+  }
+}
+#define TYPVAL_ENCODE_CONV_DICT_END(tv, dict) \
+    _nothing_conv_dict_end(tv, (dict_T **)&dict, \
+                           (void *)&TYPVAL_ENCODE_NODICT_VAR)
+
+#define TYPVAL_ENCODE_CONV_RECURSE(val, conv_type)
+
+#define TYPVAL_ENCODE_SCOPE static
+#define TYPVAL_ENCODE_NAME nothing
+#define TYPVAL_ENCODE_FIRST_ARG_TYPE const void *const
+#define TYPVAL_ENCODE_FIRST_ARG_NAME ignored
+#include "nvim/eval/typval_encode.c.h"
+#undef TYPVAL_ENCODE_SCOPE
+#undef TYPVAL_ENCODE_NAME
+#undef TYPVAL_ENCODE_FIRST_ARG_TYPE
+#undef TYPVAL_ENCODE_FIRST_ARG_NAME
 
 #undef TYPVAL_ENCODE_ALLOW_SPECIALS
 #undef TYPVAL_ENCODE_CONV_NIL
@@ -19165,15 +19249,17 @@ TYPVAL_ENCODE_DEFINE_CONV_FUNCTIONS(static, nothing, void *, ignored)
 #undef TYPVAL_ENCODE_CONV_STRING
 #undef TYPVAL_ENCODE_CONV_STR_STRING
 #undef TYPVAL_ENCODE_CONV_EXT_STRING
-#undef TYPVAL_ENCODE_CONV_FUNC
-#undef TYPVAL_ENCODE_CONV_PARTIAL
+#undef TYPVAL_ENCODE_CONV_FUNC_START
+#undef TYPVAL_ENCODE_CONV_FUNC_BEFORE_ARGS
+#undef TYPVAL_ENCODE_CONV_FUNC_BEFORE_SELF
+#undef TYPVAL_ENCODE_CONV_FUNC_END
 #undef TYPVAL_ENCODE_CONV_EMPTY_LIST
 #undef TYPVAL_ENCODE_CONV_EMPTY_DICT
 #undef TYPVAL_ENCODE_CONV_LIST_START
 #undef TYPVAL_ENCODE_CONV_LIST_BETWEEN_ITEMS
 #undef TYPVAL_ENCODE_CONV_LIST_END
 #undef TYPVAL_ENCODE_CONV_DICT_START
-#undef TYPVAL_ENCODE_CONV_SPECIAL_DICT_KEY_CHECK
+#undef TYPVAL_ENCODE_SPECIAL_DICT_KEY_CHECK
 #undef TYPVAL_ENCODE_CONV_DICT_AFTER_KEY
 #undef TYPVAL_ENCODE_CONV_DICT_BETWEEN_ITEMS
 #undef TYPVAL_ENCODE_CONV_DICT_END
@@ -19185,7 +19271,9 @@ TYPVAL_ENCODE_DEFINE_CONV_FUNCTIONS(static, nothing, void *, ignored)
 void clear_tv(typval_T *varp)
 {
   if (varp != NULL && varp->v_type != VAR_UNKNOWN) {
-    encode_vim_to_nothing(varp, varp, "clear_tv argument");
+    const int evn_ret = encode_vim_to_nothing(varp, varp, "clear_tv argument");
+    (void)evn_ret;
+    assert(evn_ret == OK);
   }
 }
 
