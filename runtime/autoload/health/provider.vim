@@ -37,6 +37,7 @@ endfunction
 function! s:system(cmd, ...) abort
   let stdin = a:0 ? a:1 : ''
   let ignore_stderr = a:0 > 1 ? a:2 : 0
+  let ignore_error = a:0 > 2 ? a:3 : 0
   let opts = {
         \ 'output': '',
         \ 'on_stdout': function('s:system_handler'),
@@ -63,7 +64,7 @@ function! s:system(cmd, ...) abort
     call health#report_error(printf('Command timed out: %s',
           \ type(a:cmd) == type([]) ? join(a:cmd) : a:cmd))
     call jobstop(jobid)
-  elseif s:shell_error != 0
+  elseif s:shell_error != 0 && !ignore_error
     call health#report_error(printf("Command error (%d) %s: %s", jobid,
           \ type(a:cmd) == type([]) ? join(a:cmd) : a:cmd,
           \ opts.output))
@@ -83,8 +84,8 @@ endfunction
 " Fetch the contents of a URL.
 function! s:download(url) abort
   if executable('curl')
-    let rv = s:system(['curl', '-sL', a:url])
-    return s:shell_error ? 'curl error: '.s:shell_error : rv
+    let rv = s:system(['curl', '-sL', a:url], '', 1, 1)
+    return s:shell_error ? 'curl error with '.a:url.': '.s:shell_error : rv
   elseif executable('python')
     let script = "
           \try:\n
@@ -110,7 +111,7 @@ function! s:check_clipboard() abort
   let clipboard_tool = provider#clipboard#Executable()
   if empty(clipboard_tool)
     call health#report_warn(
-          \ "No clipboard tool found. Using the system clipboard won't work.",
+          \ "No clipboard tool found. Clipboard registers will not work.",
           \ ['See ":help clipboard".'])
   else
     call health#report_ok('Clipboard tool found: '. clipboard_tool)
@@ -155,13 +156,10 @@ function! s:version_info(python) abort
   endif
 
   let nvim_path = s:trim(s:system([
-        \ a:python,
-        \ '-c',
-        \ 'import neovim; print(neovim.__file__)']))
-  let nvim_path = s:shell_error ? '' : nvim_path
-
-  if empty(nvim_path)
-    return [python_version, 'unable to find nvim executable', pypi_version, 'unable to get nvim executable']
+        \ a:python, '-c', 'import neovim; print(neovim.__file__)']))
+  if s:shell_error || empty(nvim_path)
+    return [python_version, 'unable to load neovim Python module', pypi_version,
+          \ nvim_path]
   endif
 
   " Assuming that multiple versions of a package are installed, sort them
@@ -172,24 +170,34 @@ function! s:version_info(python) abort
     return a == b ? 0 : a > b ? 1 : -1
   endfunction
 
-  let nvim_version = 'unable to find nvim version'
-  let base = fnamemodify(nvim_path, ':h')
-  let metas = glob(base.'-*/METADATA', 1, 1) + glob(base.'-*/PKG-INFO', 1, 1)
-  let metas = sort(metas, 's:compare')
+  " Try to get neovim.VERSION (added in 0.1.11dev).
+  let nvim_version = s:system(['python', '-c',
+        \ 'from neovim import VERSION as v; '.
+        \ 'print("{}.{}.{}{}".format(v.major, v.minor, v.patch, v.prerelease))'],
+        \ '', 1, 1)
+  if empty(nvim_version)
+    let nvim_version = 'unable to find neovim Python module version'
+    let base = fnamemodify(nvim_path, ':h')
+    let metas = glob(base.'-*/METADATA', 1, 1)
+          \ + glob(base.'-*/PKG-INFO', 1, 1)
+          \ + glob(base.'.egg-info/PKG-INFO', 1, 1)
+    let metas = sort(metas, 's:compare')
 
-  if !empty(metas)
-    for meta_line in readfile(metas[0])
-      if meta_line =~# '^Version:'
-        let nvim_version = matchstr(meta_line, '^Version: \zs\S\+')
-        break
-      endif
-    endfor
+    if !empty(metas)
+      for meta_line in readfile(metas[0])
+        if meta_line =~# '^Version:'
+          let nvim_version = matchstr(meta_line, '^Version: \zs\S\+')
+          break
+        endif
+      endfor
+    endif
   endif
 
-  let version_status = 'unknown'
+  let nvim_path_base = fnamemodify(nvim_path, ':~:h')
+  let version_status = 'unknown; '.nvim_path_base
   if !s:is_bad_response(nvim_version) && !s:is_bad_response(pypi_version)
     if s:version_cmp(nvim_version, pypi_version) == -1
-      let version_status = 'outdated'
+      let version_status = 'outdated; from '.nvim_path_base
     else
       let version_status = 'up to date'
     endif
@@ -264,7 +272,7 @@ function! s:check_python(version) abort
       let python_bin = s:trim(s:system([pyenv, 'which', python_bin_name], '', 1))
 
       if empty(python_bin)
-        call health#report_warn(printf('pyenv couldn''t find %s.', python_bin_name))
+        call health#report_warn(printf('pyenv could not find %s.', python_bin_name))
       endif
     endif
 
@@ -283,15 +291,15 @@ function! s:check_python(version) abort
         if len(python_multiple)
           " This is worth noting since the user may install something
           " that changes $PATH, like homebrew.
-          call health#report_info(printf('There are multiple %s executables found.  '
-                \ . 'Set "g:%s" to avoid surprises.', python_bin_name, host_prog_var))
+          call health#report_info(printf('Multiple %s executables found.  '
+                \ . 'Set `g:%s` to avoid surprises.', python_bin_name, host_prog_var))
         endif
 
         if python_bin =~# '\<shims\>'
-          call health#report_warn(printf('"%s" appears to be a pyenv shim.', python_bin), [
-                      \ 'The "pyenv" executable is not in $PATH,',
+          call health#report_warn(printf('`%s` appears to be a pyenv shim.', python_bin), [
+                      \ 'The `pyenv` executable is not in $PATH,',
                       \ 'Your pyenv installation is broken. You should set '
-                      \ . '"g:'.host_prog_var.'" to avoid surprises.',
+                      \ . '`g:'.host_prog_var.'` to avoid surprises.',
                       \ ])
         endif
       endif
@@ -302,9 +310,9 @@ function! s:check_python(version) abort
     if empty(venv) && !empty(pyenv) && !exists('g:'.host_prog_var)
           \ && !empty(pyenv_root) && resolve(python_bin) !~# '^'.pyenv_root.'/'
       call health#report_warn('pyenv is not set up optimally.', [
-            \ printf('Suggestion: Create a virtualenv specifically '
-            \ . 'for Neovim using pyenv and use "g:%s".  This will avoid '
-            \ . 'the need to install Neovim''s Python client in each '
+            \ printf('Create a virtualenv specifically '
+            \ . 'for Neovim using pyenv, and set `g:%s`.  This will avoid '
+            \ . 'the need to install Neovim''s Python module in each '
             \ . 'version/virtualenv.', host_prog_var)
             \ ])
     elseif !empty(venv) && exists('g:'.host_prog_var)
@@ -316,9 +324,9 @@ function! s:check_python(version) abort
 
       if resolve(python_bin) !~# '^'.venv_root.'/'
         call health#report_warn('Your virtualenv is not set up optimally.', [
-              \ printf('Suggestion: Create a virtualenv specifically '
-              \ . 'for Neovim and use "g:%s".  This will avoid '
-              \ . 'the need to install Neovim''s Python client in each '
+              \ printf('Create a virtualenv specifically '
+              \ . 'for Neovim and use `g:%s`.  This will avoid '
+              \ . 'the need to install Neovim''s Python module in each '
               \ . 'virtualenv.', host_prog_var)
               \ ])
       endif
@@ -327,7 +335,7 @@ function! s:check_python(version) abort
 
   if empty(python_bin) && !empty(python_bin_name)
     " An error message should have already printed.
-    call health#report_error(printf('"%s" was not found.', python_bin_name))
+    call health#report_error(printf('`%s` was not found.', python_bin_name))
   elseif !empty(python_bin) && !s:check_bin(python_bin)
     let python_bin = ''
   endif
@@ -347,13 +355,10 @@ function! s:check_python(version) abort
   endif
 
   if virtualenv_inactive
-    let suggestions = [
-          \ 'If you are using Zsh, see: http://vi.stackexchange.com/a/7654/5229',
-          \ ]
     call health#report_warn(
-          \ '$VIRTUAL_ENV exists but appears to be inactive. '
-          \ . 'This could lead to unexpected results.',
-          \ suggestions)
+      \ '$VIRTUAL_ENV exists but appears to be inactive. '
+      \ . 'This could lead to unexpected results.',
+      \ [ 'If you are using Zsh, see: http://vi.stackexchange.com/a/7654/5229' ])
   endif
 
   " Diagnostic output
@@ -367,7 +372,7 @@ function! s:check_python(version) abort
   if !empty(python_bin)
     let [pyversion, current, latest, status] = s:version_info(python_bin)
     if a:version != str2nr(pyversion)
-      call health#report_warn('Got an unexpected version of Python.' .
+      call health#report_warn('Unexpected Python version.' .
                   \ ' This could lead to confusing error messages.')
     endif
     if a:version == 3 && str2float(pyversion) < 3.3
@@ -375,27 +380,25 @@ function! s:check_python(version) abort
     endif
 
     call health#report_info('Python'.a:version.' version: ' . pyversion)
-    call health#report_info(printf('%s-neovim version: %s', python_bin_name, current))
+    if s:is_bad_response(status)
+      call health#report_info(printf('%s-neovim version: %s (%s)', python_bin_name, current, status))
+    else
+      call health#report_info(printf('%s-neovim version: %s', python_bin_name, current))
+    endif
 
     if s:is_bad_response(current)
-      let suggestions = [
-            \ 'Error found was: ' . current,
-            \ 'Use the command `$ pip' . a:version . ' install neovim`',
-            \ ]
       call health#report_error(
-            \ 'Neovim Python client is not installed.',
-            \ suggestions)
+        \ "Neovim Python client is not installed.\nError: ".current,
+        \ ['Run in shell: pip' . a:version . ' install neovim'])
     endif
 
     if s:is_bad_response(latest)
-      call health#report_warn('Unable to contact PyPI.')
+      call health#report_warn('Could not contact PyPI to get latest version.')
       call health#report_error('HTTP request failed: '.latest)
-    endif
-
-    if s:is_bad_response(status)
+    elseif s:is_bad_response(status)
       call health#report_warn(printf('Latest %s-neovim is NOT installed: %s',
             \ python_bin_name, latest))
-    elseif !s:is_bad_response(latest)
+    elseif !s:is_bad_response(current)
       call health#report_ok(printf('Latest %s-neovim is installed: %s',
             \ python_bin_name, latest))
     endif
@@ -408,21 +411,21 @@ function! s:check_ruby() abort
 
   if !executable('ruby') || !executable('gem')
     call health#report_warn(
-          \ "Both `ruby` and `gem` have to be in $PATH. Ruby code won't work.",
-          \ ["Install Ruby and make sure that `ruby` and `gem` are in $PATH."])
+          \ "`ruby` and `gem` must be in $PATH.",
+          \ ["Install Ruby and verify that `ruby` and `gem` commands work."])
     return
   endif
   call health#report_info('Ruby: '. s:system('ruby -v'))
 
   let host = provider#ruby#Detect()
   if empty(host)
-    call health#report_warn("Missing \"neovim\" gem. Ruby code won't work.",
+    call health#report_warn('Missing "neovim" gem.',
           \ ['Run in shell: gem install neovim'])
     return
   endif
   call health#report_info('Host: '. host)
 
-  let latest_gem_cmd = 'gem list -rae neovim'
+  let latest_gem_cmd = 'gem list -ra ^neovim$'
   let latest_gem = s:system(split(latest_gem_cmd))
   if s:shell_error || empty(latest_gem)
     call health#report_error('Failed to run: '. latest_gem_cmd,
