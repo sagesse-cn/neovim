@@ -6914,9 +6914,10 @@ static void ex_read(exarg_T *eap)
           eap->line2, (linenr_T)0, (linenr_T)MAXLNUM, eap, 0);
 
     }
-    if (i == FAIL) {
-      if (!aborting())
+    if (i != OK) {
+      if (!aborting()) {
         EMSG2(_(e_notopen), eap->arg);
+      }
     } else {
       if (empty && exmode_active) {
         /* Delete the empty line that remains.  Historically ex does
@@ -9691,9 +9692,20 @@ bool cmd_can_preview(char_u *cmd)
   if (*ea.cmd == '*') {
     ea.cmd = skipwhite(ea.cmd + 1);
   }
-  find_command(&ea, NULL);
+  char_u *end = find_command(&ea, NULL);
 
-  return ea.cmdidx == CMD_substitute
-      || ea.cmdidx == CMD_smagic
-      || ea.cmdidx == CMD_snomagic;
+  switch (ea.cmdidx) {
+    case CMD_substitute:
+    case CMD_smagic:
+    case CMD_snomagic:
+      // Only preview once the pattern delimiter has been typed
+      if (*end && !ASCII_ISALNUM(*end)) {
+        return true;
+      }
+      break;
+    default:
+      break;
+  }
+
+  return false;
 }

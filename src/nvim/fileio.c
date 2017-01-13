@@ -51,6 +51,7 @@
 #include "nvim/window.h"
 #include "nvim/shada.h"
 #include "nvim/os/os.h"
+#include "nvim/os/os_defs.h"
 #include "nvim/os/time.h"
 #include "nvim/os/input.h"
 
@@ -248,7 +249,7 @@ void filemess(buf_T *buf, char_u *name, char_u *s, int attr)
  * READ_DUMMY	read into a dummy buffer (to check if file contents changed)
  * READ_KEEP_UNDO  don't clear undo info or read it from a file
  *
- * return FAIL for failure, OK otherwise
+ * return FAIL for failure, NOTDONE for directory (failure), or OK
  */
 int 
 readfile (
@@ -257,7 +258,7 @@ readfile (
     linenr_T from,
     linenr_T lines_to_skip,
     linenr_T lines_to_read,
-    exarg_T *eap,                       /* can be NULL! */
+    exarg_T *eap,                       // can be NULL!
     int flags
 )
 {
@@ -443,13 +444,14 @@ readfile (
         // ... or a character special file named /dev/fd/<n>
 # endif
         ) {
-      if (S_ISDIR(perm))
+      if (S_ISDIR(perm)) {
         filemess(curbuf, fname, (char_u *)_("is a directory"), 0);
-      else
+      } else {
         filemess(curbuf, fname, (char_u *)_("is not a file"), 0);
+      }
       msg_end();
       msg_scroll = msg_save;
-      return FAIL;
+      return S_ISDIR(perm) ? NOTDONE : FAIL;
     }
 #endif
   }
@@ -5103,13 +5105,13 @@ void buf_reload(buf_T *buf, int orig_mode)
   }
 
   if (saved == OK) {
-    curbuf->b_flags |= BF_CHECK_RO;           /* check for RO again */
-    keep_filetype = TRUE;                     /* don't detect 'filetype' */
-    if (readfile(buf->b_ffname, buf->b_fname, (linenr_T)0,
-            (linenr_T)0,
-            (linenr_T)MAXLNUM, &ea, flags) == FAIL) {
-      if (!aborting())
+    curbuf->b_flags |= BF_CHECK_RO;           // check for RO again
+    keep_filetype = true;                     // don't detect 'filetype'
+    if (readfile(buf->b_ffname, buf->b_fname, (linenr_T)0, (linenr_T)0,
+                 (linenr_T)MAXLNUM, &ea, flags) != OK) {
+      if (!aborting()) {
         EMSG2(_("E321: Could not reload \"%s\""), buf->b_fname);
+      }
       if (savebuf != NULL && buf_valid(savebuf) && buf == curbuf) {
         /* Put the text back from the save buffer.  First
          * delete any lines that readfile() added. */
@@ -5224,6 +5226,10 @@ static void vim_maketempdir(void)
   // Try the entries in `TEMP_DIR_NAMES` to create the temp directory.
   char_u template[TEMP_FILE_PATH_MAXLEN];
   char_u path[TEMP_FILE_PATH_MAXLEN];
+
+  // Make sure the umask doesn't remove the executable bit.
+  // "repl" has been reported to use "0177".
+  mode_t umask_save = umask(0077);
   for (size_t i = 0; i < ARRAY_SIZE(temp_dirs); i++) {
     // Expand environment variables, leave room for "/nvimXXXXXX/999999999"
     expand_env((char_u *)temp_dirs[i], template, TEMP_FILE_PATH_MAXLEN - 22);
@@ -5247,6 +5253,7 @@ static void vim_maketempdir(void)
       os_rmdir((char *)path);
     }
   }
+  (void)umask(umask_save);
 }
 
 /// Delete "name" and everything in it, recursively.
