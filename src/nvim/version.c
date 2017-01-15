@@ -280,7 +280,7 @@ static int included_patches[] = {
   2163,
   2162,
   // 2161,
-  // 2160,
+  2160,
   // 2159,
   2158,
   // 2157 NA
@@ -472,7 +472,7 @@ static int included_patches[] = {
   1971,
   1970,
   // 1969 NA
-  // 1968,
+  1968,
   1967,
   1966,
   // 1965 NA
@@ -530,7 +530,7 @@ static int included_patches[] = {
   1913,
   1912,
   // 1911 NA
-  // 1910,
+  1910,
   1909,
   // 1908 NA
   // 1907 NA
@@ -589,7 +589,7 @@ static int included_patches[] = {
   // 1854 NA
   // 1853 NA
   // 1852 NA
-  // 1851,
+  1851,
   // 1850 NA
   // 1849 NA
   // 1848 NA
