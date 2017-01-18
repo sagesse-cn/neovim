@@ -4,8 +4,7 @@ local spawn, set_session, clear = helpers.spawn, helpers.set_session, helpers.cl
 local feed, execute = helpers.feed, helpers.execute
 local insert = helpers.insert
 local eq = helpers.eq
-
-if helpers.pending_win32(pending) then return end
+local eval = helpers.eval
 
 describe('Initial screen', function()
   local screen
@@ -563,11 +562,10 @@ describe('Screen', function()
       ]])
     end)
 
-    -- FIXME this has some race conditions that cause it to fail periodically
-    pending('has minimum width/height values', function()
+    it('has minimum width/height values', function()
       screen:try_resize(1, 1)
       screen:expect([[
-        -- INS^ERT --|
+        {2:-- INS^ERT --}|
                     |
       ]])
       feed('<esc>:ls')
@@ -689,5 +687,13 @@ describe('Screen', function()
         eq("normal", screen.mode)
       end)
     end)
+  end)
+
+  it('nvim_ui_attach() handles very large width/height #2180', function()
+    screen:detach()
+    screen = Screen.new(999, 999)
+    screen:attach()
+    eq(999, eval('&lines'))
+    eq(999, eval('&columns'))
   end)
 end)
