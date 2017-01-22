@@ -7009,19 +7009,6 @@ void ex_cd(exarg_T *eap)
   char_u              *tofree;
 
   new_dir = eap->arg;
-
-#ifdef CUSTOM_UI
-  char_u *cwd = xmalloc(MAXPATHL);
-  if (os_dirname(cwd, MAXPATHL) == OK) {
-    if (STRCMP(cwd, new_dir) != 0) {
-      apply_autocmds(EVENT_CWDCHANGED, NULL, NULL, false, NULL);
-    } else {
-      ILOG("CWD not changed, not informing the UI");
-    }
-  }
-  xfree(cwd);
-#endif
-
 #if !defined(UNIX)
   /* for non-UNIX ":cd" means: print current directory */
   if (*new_dir == NUL)
