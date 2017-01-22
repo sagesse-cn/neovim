@@ -13,6 +13,8 @@ local check_logs = global_helpers.check_logs
 local neq = global_helpers.neq
 local eq = global_helpers.eq
 local ok = global_helpers.ok
+local map = global_helpers.map
+local filter = global_helpers.filter
 
 local start_dir = lfs.currentdir()
 local nvim_prog = os.getenv('NVIM_PROG') or 'build/bin/nvim'
@@ -168,6 +170,10 @@ local os_name = (function()
     return name
   end)
 end)()
+
+local function iswin()
+  return os_name() == 'windows'
+end
 
 -- Executes a VimL function.
 -- Fails on VimL error, but does not update v:errmsg.
@@ -502,7 +508,6 @@ end
 -- Helper to skip tests. Returns true in Windows systems.
 -- pending_fn is pending() from busted
 local function pending_win32(pending_fn)
-  clear()
   if uname() == 'Windows' then
     if pending_fn ~= nil then
       pending_fn('FIXME: Windows', function() end)
@@ -553,6 +558,7 @@ return function(after_each)
     source = source,
     rawfeed = rawfeed,
     insert = insert,
+    iswin = iswin,
     feed = feed,
     execute = execute,
     eval = nvim_eval,
@@ -566,6 +572,8 @@ return function(after_each)
     neq = neq,
     expect = expect,
     ok = ok,
+    map = map,
+    filter = filter,
     nvim = nvim,
     nvim_async = nvim_async,
     nvim_prog = nvim_prog,
