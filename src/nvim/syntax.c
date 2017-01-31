@@ -3377,7 +3377,7 @@ static void syn_cmd_onoff(exarg_T *eap, char *name)
   eap->nextcmd = check_nextcmd(eap->arg);
   if (!eap->skip) {
     char buf[100];
-    strncpy(buf, "so ", 4);
+    memcpy(buf, "so ", 4);
     vim_snprintf(buf + 3, sizeof(buf) - 3, SYNTAX_FNAME, name);
     do_cmdline_cmd(buf);
   }
@@ -6902,8 +6902,8 @@ static int highlight_list_arg(int id, int didh, int type, int iarg, char_u *sarg
       for (i = 0; hl_attr_table[i] != 0; ++i) {
         if (iarg & hl_attr_table[i]) {
           if (buf[0] != NUL)
-            vim_strcat(buf, (char_u *)",", 100);
-          vim_strcat(buf, (char_u *)hl_name_table[i], 100);
+            xstrlcat((char *)buf, ",", 100);
+          xstrlcat((char *)buf, hl_name_table[i], 100);
           iarg &= ~hl_attr_table[i];                /* don't want "inverse" */
         }
       }

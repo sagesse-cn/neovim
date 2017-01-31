@@ -357,12 +357,12 @@ static int sort_compare(const void *s1, const void *s2)
     // We need to copy one line into "sortbuf1", because there is no
     // guarantee that the first pointer becomes invalid when obtaining the
     // second one.
-    STRNCPY(sortbuf1, ml_get(l1.lnum) + l1.st_u.line.start_col_nr,
-            l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr + 1);
-    sortbuf1[l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr] = 0;
-    STRNCPY(sortbuf2, ml_get(l2.lnum) + l2.st_u.line.start_col_nr,
-            l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr + 1);
-    sortbuf2[l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr] = 0;
+    memcpy(sortbuf1, ml_get(l1.lnum) + l1.st_u.line.start_col_nr,
+           l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr + 1);
+    sortbuf1[l1.st_u.line.end_col_nr - l1.st_u.line.start_col_nr] = NUL;
+    memcpy(sortbuf2, ml_get(l2.lnum) + l2.st_u.line.start_col_nr,
+           l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr + 1);
+    sortbuf2[l2.st_u.line.end_col_nr - l2.st_u.line.start_col_nr] = NUL;
 
     result = sort_ic ? STRICMP(sortbuf1, sortbuf2)
              : STRCMP(sortbuf1, sortbuf2);
@@ -1404,36 +1404,34 @@ char_u *make_filter_cmd(char_u *cmd, char_u *itmp, char_u *otmp)
                               :       "(%s)";
     vim_snprintf(buf, len, fmt, (char *)cmd);
   } else {
-    strncpy(buf, (char *) cmd, len);
+    xstrlcpy(buf, (char *)cmd, len);
   }
 
   if (itmp != NULL) {
-    strncat(buf, " < ", len);
-    strncat(buf, (char *) itmp, len);
+    xstrlcat(buf, " < ", len - 1);
+    xstrlcat(buf, (const char *)itmp, len - 1);
   }
 #else
   // For shells that don't understand braces around commands, at least allow
   // the use of commands in a pipe.
-  strncpy(buf, cmd, len);
+  xstrlcpy(buf, cmd, len);
   if (itmp != NULL) {
-    char_u  *p;
-
     // If there is a pipe, we have to put the '<' in front of it.
     // Don't do this when 'shellquote' is not empty, otherwise the
     // redirection would be inside the quotes.
     if (*p_shq == NUL) {
-      p = strchr(buf, '|');
+      char *const p = strchr(buf, '|');
       if (p != NULL) {
         *p = NUL;
       }
     }
-    strncat(buf, " < ", len);
-    strncat(buf, (char *) itmp, len);
+    xstrlcat(buf, " < ", len);
+    xstrlcat(buf, (const char *)itmp, len);
     if (*p_shq == NUL) {
-      p = strchr(cmd, '|');
+      const char *const p = strchr((const char *)cmd, '|');
       if (p != NULL) {
-        strncat(buf, " ", len);  // Insert a space before the '|' for DOS
-        strncat(buf, p, len);
+        xstrlcat(buf, " ", len - 1);  // Insert a space before the '|' for DOS
+        xstrlcat(buf, p, len - 1);
       }
     }
   }
@@ -4814,9 +4812,13 @@ void fix_help_buffer(void)
           vimconv_T vc;
           char_u      *cp;
 
-          /* Find all "doc/ *.txt" files in this directory. */
-          add_pathsep((char *)NameBuff);
-          STRCAT(NameBuff, "doc/*.??[tx]");
+          // Find all "doc/ *.txt" files in this directory.
+          if (!add_pathsep((char *)NameBuff)
+              || STRLCAT(NameBuff, "doc/*.??[tx]",
+                         sizeof(NameBuff)) >= MAXPATHL) {
+            EMSG(_(e_fnametoolong));
+            continue;
+          }
 
           // Note: We cannot just do `&NameBuff` because it is a statically sized array
           //       so `NameBuff == &NameBuff` according to C semantics.
@@ -4979,8 +4981,12 @@ static void helptags_one(char_u *dir, char_u *ext, char_u *tagfname,
 
   // Find all *.txt files.
   size_t dirlen = STRLCPY(NameBuff, dir, sizeof(NameBuff));
-  STRCAT(NameBuff, "/**/*");  // NOLINT
-  STRCAT(NameBuff, ext);
+  if (dirlen >= MAXPATHL
+      || STRLCAT(NameBuff, "/**/*", sizeof(NameBuff)) >= MAXPATHL  // NOLINT
+      || STRLCAT(NameBuff, ext, sizeof(NameBuff)) >= MAXPATHL) {
+    EMSG(_(e_fnametoolong));
+    return;
+  }
 
   // Note: We cannot just do `&NameBuff` because it is a statically sized array
   //       so `NameBuff == &NameBuff` according to C semantics.
@@ -4993,13 +4999,16 @@ static void helptags_one(char_u *dir, char_u *ext, char_u *tagfname,
     return;
   }
 
-  /*
-   * Open the tags file for writing.
-   * Do this before scanning through all the files.
-   */
-  STRLCPY(NameBuff, dir, sizeof(NameBuff));
-  add_pathsep((char *)NameBuff);
-  STRNCAT(NameBuff, tagfname, sizeof(NameBuff) - dirlen - 2);
+  //
+  // Open the tags file for writing.
+  // Do this before scanning through all the files.
+  //
+  memcpy(NameBuff, dir, dirlen + 1);
+  if (!add_pathsep((char *)NameBuff)
+      || STRLCAT(NameBuff, tagfname, sizeof(NameBuff)) >= MAXPATHL) {
+    EMSG(_(e_fnametoolong));
+    return;
+  }
   fd_tags = mch_fopen((char *)NameBuff, "w");
   if (fd_tags == NULL) {
     EMSG2(_("E152: Cannot open %s for writing"), NameBuff);
@@ -5173,8 +5182,12 @@ static void do_helptags(char_u *dirname, bool add_help_tags)
 
   // Get a list of all files in the help directory and in subdirectories.
   STRLCPY(NameBuff, dirname, sizeof(NameBuff));
-  add_pathsep((char *)NameBuff);
-  STRCAT(NameBuff, "**");
+  if (!add_pathsep((char *)NameBuff)
+      || STRLCAT(NameBuff, "**", sizeof(NameBuff)) >= MAXPATHL) {
+    EMSG(_(e_fnametoolong));
+    xfree(dirname);
+    return;
+  }
 
   // Note: We cannot just do `&NameBuff` because it is a statically sized array
   //       so `NameBuff == &NameBuff` according to C semantics.

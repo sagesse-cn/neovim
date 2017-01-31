@@ -39,7 +39,6 @@ function! man#open_page(count, count1, mods, ...) abort
       let sect = string(a:count)
     endif
     let [sect, name, path] = s:verify_exists(sect, name)
-    let page = s:get_page(path)
   catch
     call s:error(v:exception)
     return
@@ -52,6 +51,15 @@ function! man#open_page(count, count1, mods, ...) abort
   else
     noautocmd execute 'silent' a:mods 'split' fnameescape(bufname)
   endif
+
+  try
+    let page = s:get_page(path)
+  catch
+    close
+    call s:error(v:exception)
+    return
+  endtry
+
   let b:man_sect = sect
   call s:put_page(page)
 endfunction
@@ -125,8 +133,8 @@ function! s:put_page(page) abort
   setlocal noreadonly
   silent keepjumps %delete _
   silent put =a:page
-  " Remove all backspaced characters.
-  execute 'silent keeppatterns keepjumps %substitute,.\b,,e'.(&gdefault?'':'g')
+  " Remove all backspaced/escape characters.
+  execute 'silent keeppatterns keepjumps %substitute,.\b\|\e\[\d\+m,,e'.(&gdefault?'':'g')
   while getline(1) =~# '^\s*$'
     silent keepjumps 1delete _
   endwhile
@@ -311,8 +319,8 @@ function! s:format_candidate(path, psect) abort
 endfunction
 
 function! man#init_pager() abort
-  " Remove all backspaced characters.
-  execute 'silent keeppatterns keepjumps %substitute,.\b,,e'.(&gdefault?'':'g')
+  " Remove all backspaced/escape characters.
+  execute 'silent keeppatterns keepjumps %substitute,.\b\|\e\[\d\+m,,e'.(&gdefault?'':'g')
   if getline(1) =~# '^\s*$'
     silent keepjumps 1delete _
   else

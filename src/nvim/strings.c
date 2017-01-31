@@ -51,15 +51,14 @@ char_u *vim_strsave(const char_u *string)
   return (char_u *)xstrdup((char *)string);
 }
 
-/*
- * Copy up to "len" bytes of "string" into newly allocated memory and
- * terminate with a NUL.
- * The allocated memory always has size "len + 1", also when "string" is
- * shorter.
- */
+/// Copy up to `len` bytes of `string` into newly allocated memory and
+/// terminate with a NUL. The allocated memory always has size `len + 1`, even
+/// when `string` is shorter.
 char_u *vim_strnsave(const char_u *string, size_t len)
   FUNC_ATTR_NONNULL_RET FUNC_ATTR_MALLOC FUNC_ATTR_NONNULL_ALL
 {
+  // strncpy is intentional: some parts of Vim use `string` shorter than `len`
+  // and expect the remainder to be zeroed out.
   return (char_u *)strncpy(xmallocz(len), (char *)string, len);
 }
 
@@ -342,24 +341,6 @@ void del_trailing_spaces(char_u *ptr)
   q = ptr + STRLEN(ptr);
   while (--q > ptr && ascii_iswhite(q[0]) && q[-1] != '\\' && q[-1] != Ctrl_V)
     *q = NUL;
-}
-
-/*
- * Like strcat(), but make sure the result fits in "tosize" bytes and is
- * always NUL terminated.
- */
-void vim_strcat(char_u *restrict to, const char_u *restrict from,
-                size_t tosize)
-  FUNC_ATTR_NONNULL_ALL
-{
-  size_t tolen = STRLEN(to);
-  size_t fromlen = STRLEN(from);
-
-  if (tolen + fromlen + 1 > tosize) {
-    memcpy(to + tolen, from, tosize - tolen - 1);
-    to[tosize - 1] = NUL;
-  } else
-    STRCPY(to + tolen, from);
 }
 
 #if (!defined(HAVE_STRCASECMP) && !defined(HAVE_STRICMP))

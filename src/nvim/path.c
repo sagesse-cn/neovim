@@ -391,15 +391,22 @@ char *concat_fnames_realloc(char *fname1, const char *fname2, bool sep)
                           fname2, len2, sep);
 }
 
-/*
- * Add a path separator to a file name, unless it already ends in a path
- * separator.
- */
-void add_pathsep(char *p)
+/// Adds a path separator to a filename, unless it already ends in one.
+///
+/// @return `true` if the path separator was added or already existed.
+///         `false` if the filename is too long.
+bool add_pathsep(char *p)
   FUNC_ATTR_NONNULL_ALL
 {
-  if (*p != NUL && !after_pathsep(p, p + strlen(p)))
-    strcat(p, PATHSEPSTR);
+  const size_t len = strlen(p);
+  if (*p != NUL && !after_pathsep(p, p + len)) {
+    const size_t pathsep_len = sizeof(PATHSEPSTR);
+    if (len > MAXPATHL - pathsep_len) {
+      return false;
+    }
+    memcpy(p + len, PATHSEPSTR, pathsep_len);
+  }
+  return true;
 }
 
 /// Get an allocated copy of the full path to a file.
@@ -579,7 +586,7 @@ static size_t do_path_expand(garray_T *gap, const char_u *path,
     }
     if (has_mbyte) {
       len = (size_t)(*mb_ptr2len)(path_end);
-      STRNCPY(p, path_end, len);
+      memcpy(p, path_end, len);
       p += len;
       path_end += len;
     } else
@@ -2181,7 +2188,8 @@ static int path_get_absolute_path(const char_u *fname, char_u *buf,
         relative_directory[0] = '/';
         relative_directory[1] = NUL;
       } else {
-        STRNCPY(relative_directory, fname, p-fname);
+        assert(p >= fname);
+        memcpy(relative_directory, fname, (size_t)(p - fname));
         relative_directory[p-fname] = NUL;
       }
       end_of_path = (char *) (p + 1);

@@ -193,7 +193,6 @@ typedef struct ff_search_ctx_T {
 
 static char_u e_pathtoolong[] = N_("E854: path too long for completion");
 
-
 /*
  * Initialization routine for vim_findfile().
  *
@@ -1370,6 +1369,11 @@ find_file_in_path_option (
   char_u              *file_name = NULL;
   char_u              *buf = NULL;
   int rel_to_curdir;
+
+  if (rel_fname != NULL && path_with_url((const char *)rel_fname)) {
+    // Do not attempt to search "relative" to a URL. #6009
+    rel_fname = NULL;
+  }
 
   if (first == TRUE) {
     /* copy file name into NameBuff, expanding environment variables */

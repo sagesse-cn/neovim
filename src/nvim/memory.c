@@ -364,29 +364,58 @@ char *xstpncpy(char *restrict dst, const char *restrict src, size_t maxlen)
     }
 }
 
-/// xstrlcpy - Copy a %NUL terminated string into a sized buffer
+/// xstrlcpy - Copy a NUL-terminated string into a sized buffer
 ///
-/// Compatible with *BSD strlcpy: the result is always a valid
-/// NUL-terminated string that fits in the buffer (unless,
-/// of course, the buffer size is zero). It does not pad
-/// out the result like strncpy() does.
+/// Compatible with *BSD strlcpy: the result is always a valid NUL-terminated
+/// string that fits in the buffer (unless, of course, the buffer size is
+/// zero). It does not pad out the result like strncpy() does.
 ///
-/// @param dst Where to copy the string to
-/// @param src Where to copy the string from
-/// @param size Size of destination buffer
-/// @return Length of the source string (i.e.: strlen(src))
-size_t xstrlcpy(char *restrict dst, const char *restrict src, size_t size)
+/// @param dst    Buffer to store the result
+/// @param src    String to be copied
+/// @param dsize  Size of `dst`
+/// @return       strlen(src). If retval >= dstsize, truncation occurs.
+size_t xstrlcpy(char *restrict dst, const char *restrict src, size_t dsize)
   FUNC_ATTR_NONNULL_ALL
 {
-  size_t ret = strlen(src);
+  size_t slen = strlen(src);
 
-  if (size) {
-    size_t len = (ret >= size) ? size - 1 : ret;
+  if (dsize) {
+    size_t len = MIN(slen, dsize - 1);
     memcpy(dst, src, len);
     dst[len] = '\0';
   }
 
-  return ret;
+  return slen;  // Does not include NUL.
+}
+
+/// Appends `src` to string `dst` of size `dsize` (unlike strncat, dsize is the
+/// full size of `dst`, not space left).  At most dsize-1 characters
+/// will be copied.  Always NUL terminates. `src` and `dst` may overlap.
+///
+/// @see vim_strcat from Vim.
+/// @see strlcat from OpenBSD.
+///
+/// @param dst      Buffer to be appended-to. Must have a NUL byte.
+/// @param src      String to put at the end of `dst`
+/// @param dsize    Size of `dst` including NUL byte. Must be greater than 0.
+/// @return         strlen(src) + strlen(initial dst)
+///                 If retval >= dsize, truncation occurs.
+size_t xstrlcat(char *const dst, const char *const src, const size_t dsize)
+  FUNC_ATTR_NONNULL_ALL
+{
+  assert(dsize > 0);
+  const size_t dlen = strlen(dst);
+  assert(dlen < dsize);
+  const size_t slen = strlen(src);
+
+  if (slen > dsize - dlen - 1) {
+    memmove(dst + dlen, src, dsize - dlen - 1);
+    dst[dsize - 1] = '\0';
+  } else {
+    memmove(dst + dlen, src, slen + 1);
+  }
+
+  return slen + dlen;  // Does not include NUL.
 }
 
 /// strdup() wrapper
