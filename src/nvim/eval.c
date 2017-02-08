@@ -6200,17 +6200,6 @@ bool set_ref_in_item(typval_T *tv, int copyID, ht_stack_T **ht_stack,
           set_ref_in_callback(&watcher->callback, copyID, ht_stack, list_stack);
         }
       }
-      if (tv->v_type == VAR_PARTIAL) {
-        partial_T *pt = tv->vval.v_partial;
-        int i;
-
-        if (pt != NULL) {
-          for (i = 0; i < pt->pt_argc; i++) {
-            abort = abort || set_ref_in_item(&pt->pt_argv[i], copyID,
-                                             ht_stack, list_stack);
-          }
-        }
-      }
       break;
     }
 
@@ -10317,7 +10306,7 @@ static void f_getcompletion(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 
   ExpandInit(&xpc);
   xpc.xp_pattern = get_tv_string(&argvars[0]);
-  xpc.xp_pattern_len = STRLEN(xpc.xp_pattern);
+  xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
   xpc.xp_context = cmdcomplete_str_to_type(get_tv_string(&argvars[1]));
   if (xpc.xp_context == EXPAND_NOTHING) {
     if (argvars[1].v_type == VAR_STRING) {
@@ -10330,17 +10319,17 @@ static void f_getcompletion(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 
   if (xpc.xp_context == EXPAND_MENUS) {
     set_context_in_menu_cmd(&xpc, (char_u *)"menu", xpc.xp_pattern, false);
-    xpc.xp_pattern_len = STRLEN(xpc.xp_pattern);
+    xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
   }
 
   if (xpc.xp_context == EXPAND_CSCOPE) {
     set_context_in_cscope_cmd(&xpc, xpc.xp_pattern, CMD_cscope);
-    xpc.xp_pattern_len = STRLEN(xpc.xp_pattern);
+    xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
   }
 
   if (xpc.xp_context == EXPAND_SIGN) {
     set_context_in_sign_cmd(&xpc, xpc.xp_pattern);
-    xpc.xp_pattern_len = STRLEN(xpc.xp_pattern);
+    xpc.xp_pattern_len = (int)STRLEN(xpc.xp_pattern);
   }
 
   pat = addstar(xpc.xp_pattern, xpc.xp_pattern_len, xpc.xp_context);
@@ -14140,11 +14129,9 @@ static void f_resolve(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   p = get_tv_string(&argvars[0]);
 #ifdef WIN32
   {
-    char_u  *v = NULL;
-
-    v = os_resolve_shortcut(p);
+    char *v = os_resolve_shortcut(p);
     if (v != NULL) {
-      rettv->vval.v_string = v;
+      rettv->vval.v_string = (char_u *)v;
     } else {
       rettv->vval.v_string = vim_strsave(p);
     }

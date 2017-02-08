@@ -784,8 +784,16 @@ equal" and "is" can be used.  This compares the key/values of the |Dictionary|
 recursively.  Ignoring case means case is ignored when comparing item values.
 
 							*E694*
-A |Funcref| can only be compared with a |Funcref| and only "equal" and "not
-equal" can be used.  Case is never ignored.
+A |Funcref| can only be compared with a |Funcref| and only "equal", "not
+equal", "is" and "isnot" can be used.  Case is never ignored.  Whether
+arguments or a Dictionary are bound (with a partial) matters.  The
+Dictionaries must also be equal (or the same, in case of "is") and the
+arguments must be equal (or the same).
+
+To compare Funcrefs to see if they refer to the same function, ignoring bound
+Dictionary and arguments, use |get()| to get the function name: >
+	if get(Part1, 'name') == get(Part2, 'name')
+	   " Part1 and Part2 refer to the same function
 
 When using "is" or "isnot" with a |List| or a |Dictionary| this checks if the
 expressions are referring to the same |List| or |Dictionary| instance.  A copy
@@ -1678,11 +1686,7 @@ v:progname	Contains the name (with path removed) with which Nvim was
 		Read-only.
 
 					*v:progpath* *progpath-variable*
-v:progpath	Contains the command with which Vim was invoked, including the
-		path. To get the full path use: >
-			echo exepath(v:progpath)
-<		NOTE: This does not work when the command is a relative path
-		and the current directory has changed.
+v:progpath	Absolute path to the current running Nvim.
 		Read-only.
 
 					*v:register* *register-variable*
@@ -2109,7 +2113,7 @@ remote_peek({serverid} [, {retvar}])
 remote_read({serverid})	String	read reply string
 remote_send({server}, {string} [, {idvar}])
 				String	send key sequence
-remove({list}, {idx} [, {end}])  any	remove items {idx}-{end} from {list}
+remove({list}, {idx} [, {end}])	any	remove items {idx}-{end} from {list}
 remove({dict}, {key})		any	remove entry {key} from {dict}
 rename({from}, {to})		Number	rename (move) file from {from} to {to}
 repeat({expr}, {count})	String	repeat {expr} {count} times
@@ -2201,7 +2205,7 @@ synconcealed({lnum}, {col})	List    info about concealing
 synstack({lnum}, {col})	List	stack of syntax IDs at {lnum} and {col}
 system({cmd} [, {input}])	String	output of shell command/filter {cmd}
 systemlist({cmd} [, {input}])	List	output of shell command/filter {cmd}
-tabpagebuflist([{arg}])	List	list of buffer numbers in tab page
+tabpagebuflist([{arg}])		List	list of buffer numbers in tab page
 tabpagenr([{arg}])		Number	number of current or last tab page
 tabpagewinnr({tabarg}[, {arg}])
 				Number	number of current window in tab page
@@ -3087,19 +3091,19 @@ execute({command} [, {silent}])				*execute()*
 		The default is 'silent'.  Note that with "silent!", unlike
 		`:redir`, error messages are dropped.
 
-		This function is not available in the |sandbox|.
+		To get a list of lines use |split()| on the result: >
+			split(execute('args'), "\n")
+
+<		This function is not available in the |sandbox|.
 		Note: If nested, an outer execute() will not observe output of
 		the inner calls.
 		Note: Text attributes (highlights) are not captured.
 
 exepath({expr})						*exepath()*
-		If {expr} is an executable and is either an absolute path, a
-		relative path or found in $PATH, return the full path.
-		Note that the current directory is used when {expr} starts
-		with "./", which may be a problem for Vim: >
-			echo exepath(v:progpath)
-<		If {expr} cannot be found in $PATH or is not executable then
-		an empty string is returned.
+		Returns the full path of {expr} if it is an executable and
+		given as a (partial or full) path or is found in $PATH.
+		Returns empty string otherwise.
+		If {expr} starts with "./" the |current-directory| is used.
 
 							*exists()*
 exists({expr})	The result is a Number, which is non-zero if {expr} is

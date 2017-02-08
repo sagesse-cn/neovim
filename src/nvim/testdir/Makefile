@@ -8,7 +8,6 @@ VIMPROG := ../../../build/bin/nvim
 SCRIPTSOURCE := ../../../runtime
 
 SCRIPTS := \
-           test8.out              \
            test13.out             \
            test14.out             \
            test17.out             \
@@ -22,7 +21,6 @@ SCRIPTS := \
            test52.out             \
            test53.out             \
            test64.out             \
-           test69.out             \
            test73.out             \
            test79.out             \
            test_marks.out         \

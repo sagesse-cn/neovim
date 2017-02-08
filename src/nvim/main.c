@@ -238,9 +238,7 @@ int main(int argc, char **argv)
   // Check if we have an interactive window.
   check_and_set_isatty(&params);
 
-  // Get the name with which Nvim was invoked, with and without path.
-  set_vim_var_string(VV_PROGPATH, argv[0], -1);
-  set_vim_var_string(VV_PROGNAME, (char *) path_tail((char_u *) argv[0]), -1);
+  init_path(argv[0]);
 
   event_init();
   /*
@@ -600,10 +598,13 @@ void getout(int exitval)
     /* Trigger BufUnload for buffers that are loaded */
     FOR_ALL_BUFFERS(buf) {
       if (buf->b_ml.ml_mfp != NULL) {
-        apply_autocmds(EVENT_BUFUNLOAD, buf->b_fname, buf->b_fname,
-            FALSE, buf);
-        if (!buf_valid(buf))            /* autocmd may delete the buffer */
+        bufref_T bufref;
+        set_bufref(&bufref, buf);
+        apply_autocmds(EVENT_BUFUNLOAD, buf->b_fname, buf->b_fname, false, buf);
+        if (!bufref_valid(&bufref)) {
+          // Autocmd deleted the buffer.
           break;
+        }
       }
     }
     apply_autocmds(EVENT_VIMLEAVEPRE, NULL, NULL, FALSE, curbuf);
@@ -1210,9 +1211,27 @@ static void check_and_set_isatty(mparm_T *paramp)
 #endif
   TIME_MSG("window checked");
 }
-/*
- * Get filename from command line, given that there is one.
- */
+
+// Sets v:progname and v:progpath. Also modifies $PATH on Windows.
+static void init_path(char *exename)
+{
+  char exepath[MAXPATHL] = { 0 };
+  size_t exepathlen = MAXPATHL;
+  // Make v:progpath absolute.
+  if (os_exepath(exepath, &exepathlen) != 0) {
+    EMSG2(e_intern2, "init_path()");
+  }
+  set_vim_var_string(VV_PROGPATH, exepath, -1);
+  set_vim_var_string(VV_PROGNAME, (char *)path_tail((char_u *)exename), -1);
+
+#ifdef WIN32
+  // Append the process start directory to $PATH, so that ":!foo" finds tools
+  // shipped with Windows package. This also mimics SearchPath().
+  os_setenv_append_path(exepath);
+#endif
+}
+
+/// Get filename from command line, if any.
 static char_u *get_fname(mparm_T *parmp, char_u *cwd)
 {
 #if !defined(UNIX)
