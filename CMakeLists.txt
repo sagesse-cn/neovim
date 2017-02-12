@@ -152,9 +152,9 @@ if(NOT MSVC)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wconversion")
 endif()
 
-# gcc 4.0 and better turn on _FORTIFY_SOURCE=2 automatically.  This currently
+# gcc 4.0+ sets _FORTIFY_SOURCE=2 automatically.  This currently
 # does not work with Neovim due to some uses of dynamically-sized structures.
-# See https://github.com/neovim/neovim/issues/223 for details.
+# https://github.com/neovim/neovim/issues/223
 include(CheckCSourceCompiles)
 
 # Include the build type's default flags in the check for _FORTIFY_SOURCE,
@@ -434,7 +434,6 @@ if(NOT BUSTED_OUTPUT_TYPE)
 endif()
 
 find_program(LUACHECK_PRG luacheck)
-
 find_program(GPERF_PRG gperf)
 
 include(InstallHelpers)
@@ -467,7 +466,7 @@ get_compile_flags(NVIM_VERSION_CFLAGS)
 
 add_subdirectory(test/includes)
 add_subdirectory(config)
-add_subdirectory(test/functional/fixtures) # compile pty/shell test programs
+add_subdirectory(test/functional/fixtures)  # compile test programs
 add_subdirectory(runtime)
 
 # Setup some test-related bits.  We do this after going down the tree because we
@@ -532,8 +531,7 @@ if(BUSTED_PRG)
       DEPENDS ${UNITTEST_PREREQS}
       ${TEST_TARGET_ARGS})
   else()
-    message(WARNING "The Luajit ffi is not available in ${LUA_PRG}"
-	    ", disabling unit tests")
+    message(WARNING "disabling unit tests: no Luajit FFI in ${LUA_PRG}")
   endif()
 
   add_custom_target(functionaltest
