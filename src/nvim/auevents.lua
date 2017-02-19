@@ -28,6 +28,7 @@ return {
     'CursorHoldI',            -- idem, in Insert mode
     'CursorMoved',            -- cursor was moved
     'CursorMovedI',           -- cursor was moved in Insert mode
+    'CwdChanged',             -- cwd changed
     'DirChanged',             -- directory changed
     'EncodingChanged',        -- after changing the 'encoding' option
     'FileAppendCmd',          -- append to a file using command
