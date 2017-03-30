@@ -1920,7 +1920,7 @@ return {
       vi_def=true,
       varname='p_scbk',
       redraw={'current_buffer'},
-      defaults={if_true={vi=-1}}
+      defaults={if_true={vi=1000}}
     },
     {
       full_name='scrollbind', abbreviation='scb',
