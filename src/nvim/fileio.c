@@ -6965,6 +6965,10 @@ static bool apply_autocmds_group(event_T event, char_u *fname, char_u *fname_io,
 
   au_cleanup();         /* may really delete removed patterns/commands now */
 
+#ifdef CUSTOM_UI
+  custom_ui_autocmds_groups(event, fname, fname_io, group, force, buf, eap);
+#endif
+  
 BYPASS_AU:
   /* When wiping out a buffer make sure all its buffer-local autocommands
    * are deleted. */
@@ -6974,10 +6978,6 @@ BYPASS_AU:
   if (retval == OK && event == EVENT_FILETYPE) {
     au_did_filetype = true;
   }
-
-#ifdef CUSTOM_UI
-  custom_ui_autocmds_groups(event, fname, fname_io, group, force, buf, eap);
-#endif
 
   return retval;
 }
