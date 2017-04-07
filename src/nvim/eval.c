@@ -11011,18 +11011,19 @@ static void get_user_input(typval_T *argvars, typval_T *rettv, int inputdialog)
     cmdline_row = msg_row;
 
     const char *defstr = "";
+    char buf[NUMBUFLEN];
     if (argvars[1].v_type != VAR_UNKNOWN) {
-      char buf[NUMBUFLEN];
       defstr = tv_get_string_buf_chk(&argvars[1], buf);
       if (defstr != NULL) {
         stuffReadbuffSpec(defstr);
       }
 
       if (!inputdialog && argvars[2].v_type != VAR_UNKNOWN) {
+        char buf2[NUMBUFLEN];
         // input() with a third argument: completion
         rettv->vval.v_string = NULL;
 
-        const char *const xp_name = tv_get_string_buf_chk(&argvars[2], buf);
+        const char *const xp_name = tv_get_string_buf_chk(&argvars[2], buf2);
         if (xp_name == NULL) {
           return;
         }
@@ -17291,7 +17292,7 @@ static bool write_list(FileDescriptor *const fp, const list_T *const list,
       }
     }
   }
-  if ((error = file_fsync(fp)) != 0) {
+  if ((error = file_flush(fp)) != 0) {
     goto write_list_error;
   }
   return true;
@@ -17423,16 +17424,24 @@ static void f_writefile(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 
   bool binary = false;
   bool append = false;
+  bool do_fsync = !!p_fs;
   if (argvars[2].v_type != VAR_UNKNOWN) {
     const char *const flags = tv_get_string_chk(&argvars[2]);
     if (flags == NULL) {
       return;
     }
-    if (strchr(flags, 'b')) {
-      binary = true;
-    }
-    if (strchr(flags, 'a')) {
-      append = true;
+    for (const char *p = flags; *p; p++) {
+      switch (*p) {
+        case 'b': { binary = true; break; }
+        case 'a': { append = true; break; }
+        case 's': { do_fsync = true; break; }
+        case 'S': { do_fsync = false; break; }
+        default: {
+          // Using %s, p and not %c, *p to preserve multibyte characters
+          emsgf(_("E5060: Unknown flag: %s"), p);
+          return;
+        }
+      }
     }
   }
 
@@ -17441,21 +17450,21 @@ static void f_writefile(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   if (fname == NULL) {
     return;
   }
-  FileDescriptor *fp;
+  FileDescriptor fp;
   int error;
   rettv->vval.v_number = -1;
   if (*fname == NUL) {
     EMSG(_("E482: Can't open file with an empty name"));
-  } else if ((fp = file_open_new(&error, fname,
-                                 ((append ? kFileAppend : kFileTruncate)
-                                  | kFileCreate), 0666)) == NULL) {
+  } else if ((error = file_open(&fp, fname,
+                                ((append ? kFileAppend : kFileTruncate)
+                                 | kFileCreate), 0666)) != 0) {
     emsgf(_("E482: Can't open file %s for writing: %s"),
           fname, os_strerror(error));
   } else {
-    if (write_list(fp, argvars[0].vval.v_list, binary)) {
+    if (write_list(&fp, argvars[0].vval.v_list, binary)) {
       rettv->vval.v_number = 0;
     }
-    if ((error = file_free(fp)) != 0) {
+    if ((error = file_close(&fp, do_fsync)) != 0) {
       emsgf(_("E80: Error when closing file %s: %s"),
             fname, os_strerror(error));
     }
