@@ -62,7 +62,7 @@
  * toupper() and tolower() that use the current locale.
  * Careful: Only call TOUPPER_LOC() and TOLOWER_LOC() with a character in the
  * range 0 - 255.  toupper()/tolower() on some systems can't handle others.
- * Note: It is often better to use vim_tolower() and vim_toupper(), because many
+ * Note: It is often better to use mb_tolower() and mb_toupper(), because many
  * toupper() and tolower() implementations only work for ASCII.
  */
 #define TOUPPER_LOC toupper
@@ -120,8 +120,10 @@
 /* mch_open_rw(): invoke os_open() with third argument for user R/W. */
 #if defined(UNIX)  /* open in rw------- mode */
 # define mch_open_rw(n, f)      os_open((n), (f), (mode_t)0600)
+#elif defined(WIN32)
+# define mch_open_rw(n, f)      os_open((n), (f), S_IREAD | S_IWRITE)
 #else
-#  define mch_open_rw(n, f)     os_open((n), (f), 0)
+# define mch_open_rw(n, f)      os_open((n), (f), 0)
 #endif
 
 # define REPLACE_NORMAL(s) (((s) & REPLACE_FLAG) && !((s) & VREPLACE_FLAG))
