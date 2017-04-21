@@ -1,3 +1,6 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check
+// it. PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 /*
  * eval.c: Expression evaluation.
  */
@@ -4764,7 +4767,7 @@ static int get_string_tv(char_u **arg, typval_T *rettv, int evaluate)
 
       // Special key, e.g.: "\<C-W>"
       case '<':
-        extra = trans_special((const char_u **) &p, STRLEN(p), name, true);
+        extra = trans_special((const char_u **)&p, STRLEN(p), name, true, true);
         if (extra != 0) {
           name += extra;
           break;
@@ -8663,7 +8666,6 @@ static void f_foldtext(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   char_u      *r;
   int         len;
   char        *txt;
-  long        count;
 
   rettv->v_type = VAR_STRING;
   rettv->vval.v_string = NULL;
@@ -8691,8 +8693,8 @@ static void f_foldtext(typval_T *argvars, typval_T *rettv, FunPtr fptr)
           s = skipwhite(s + 1);
       }
     }
-    count = (long)(foldend - foldstart + 1);
-    txt = _("+-%s%3ld lines: ");
+    unsigned long count = (unsigned long)(foldend - foldstart + 1);
+    txt = ngettext("+-%s%3ld line: ", "+-%s%3ld lines: ", count);
     r = xmalloc(STRLEN(txt)
                 + STRLEN(dashes) // for %s
                 + 20             // for %3ld
@@ -8712,7 +8714,7 @@ static void f_foldtext(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 static void f_foldtextresult(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 {
   char_u      *text;
-  char_u buf[51];
+  char_u buf[FOLD_TEXT_LEN];
   foldinfo_T foldinfo;
   int fold_count;
 

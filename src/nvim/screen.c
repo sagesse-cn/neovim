@@ -1,3 +1,6 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check
+// it. PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 /*
  * screen.c: code for displaying on the screen
  *
@@ -1684,7 +1687,7 @@ static int compute_foldcolumn(win_T *wp, int col)
  */
 static void fold_line(win_T *wp, long fold_count, foldinfo_T *foldinfo, linenr_T lnum, int row)
 {
-  char_u buf[51];
+  char_u buf[FOLD_TEXT_LEN];
   pos_T       *top, *bot;
   linenr_T lnume = lnum + fold_count - 1;
   int len;

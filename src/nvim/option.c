@@ -1,3 +1,6 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check
+// it. PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 // User-settable options. Checklist for adding a new option:
 // - Put it in options.lua
 // - For a global option: Add a variable for it in option_defs.h.
@@ -4223,7 +4226,7 @@ static char *set_num_option(int opt_idx, char_u *varp, long value,
   } else if (pp == &curbuf->b_p_scbk || pp == &p_scbk) {
     // 'scrollback'
     if (*pp < -1 || *pp > SB_MAX
-        || (opt_flags == OPT_LOCAL && !curbuf->terminal)) {
+        || (*pp != -1 && opt_flags == OPT_LOCAL && !curbuf->terminal)) {
       errmsg = e_invarg;
       *pp = old_value;
     } else if (curbuf->terminal) {
@@ -4818,7 +4821,7 @@ int find_key_option_len(const char_u *arg, size_t len)
   } else {
     arg--;  // put arg at the '<'
     modifiers = 0;
-    key = find_special_key(&arg, len + 1, &modifiers, true, true);
+    key = find_special_key(&arg, len + 1, &modifiers, true, true, false);
     if (modifiers) {  // can't handle modifiers here
       key = 0;
     }

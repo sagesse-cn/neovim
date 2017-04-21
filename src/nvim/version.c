@@ -1,3 +1,6 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check
+// it. PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
+
 /// @file version.c
 ///
 /// Nvim was forked from Vim 7.4.160.
@@ -232,7 +235,7 @@ static const int included_patches[] = {
   2212,
   // 2211 NA
   // 2210 NA
-  // 2209,
+  2209,
   2208,
   // 2207 NA
   // 2206 NA
@@ -262,13 +265,13 @@ static const int included_patches[] = {
   // 2182 NA
   // 2181 NA
   2180,
-  // 2179,
+  2179,
   2178,
   2177,
   // 2176 NA
   2175,
   2174,
-  // 2173,
+  2173,
   2172,
   // 2171 NA
   2170,
@@ -276,7 +279,7 @@ static const int included_patches[] = {
   // 2168 NA
   // 2167 NA
   // 2166 NA
-  // 2165,
+  2165,
   2164,
   2163,
   2162,
@@ -289,7 +292,7 @@ static const int included_patches[] = {
   // 2155 NA
   // 2154 NA
   // 2153 NA
-  // 2152,
+  2152,
   2151,
   // 2150 NA
   2149,
