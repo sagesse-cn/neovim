@@ -57,6 +57,7 @@ static int current_attr_code = 0;
 static bool pending_cursor_update = false;
 static int busy = 0;
 static int height, width;
+static int old_mode_idx = -1;
 
 // UI_CALL invokes a function on all registered UI instances. The functions can
 // have 0-5 arguments (configurable by SELECT_NTH).
@@ -157,12 +158,6 @@ void ui_event(char *name, Array args)
   }
 }
 
-// May update the shape of the cursor.
-void ui_cursor_shape(void)
-{
-  ui_mode_change();
-}
-
 void ui_refresh(void)
 {
   if (!ui_active()) {
@@ -187,7 +182,9 @@ void ui_refresh(void)
   row = col = 0;
   screen_resize(width, height);
   pum_set_external(pum_external);
-  ui_cursor_style_set();
+  ui_mode_info_set();
+  old_mode_idx = -1;
+  ui_cursor_shape();
 }
 
 static void ui_refresh_event(void **argv)
@@ -385,12 +382,12 @@ void ui_cursor_goto(int new_row, int new_col)
   pending_cursor_update = true;
 }
 
-void ui_cursor_style_set(void)
+void ui_mode_info_set(void)
 {
-  Dictionary style = cursor_shape_dict();
+  Array style = mode_style_array();
   bool enabled = (*p_guicursor != NUL);
-  UI_CALL(cursor_style_set, enabled, style);
-  api_free_dictionary(style);
+  UI_CALL(mode_info_set, enabled, style);
+  api_free_array(style);
 }
 
 void ui_update_menu(void)
@@ -548,32 +545,19 @@ static void flush_cursor_update(void)
   }
 }
 
-// Notify that the current mode has changed. Can be used to change cursor
-// shape, for example.
-static void ui_mode_change(void)
+/// Check if current mode has changed.
+/// May update the shape of the cursor.
+void ui_cursor_shape(void)
 {
-  int mode;
   if (!full_screen) {
     return;
   }
+  int mode_idx = cursor_get_mode_idx();
 
-  // Use the real state here to get also VISUAL
-  int real_state = get_real_state();
-
-  if ((real_state & REPLACE) == REPLACE) {
-    mode = REPLACE;
-  } else if (real_state & VISUAL) {
-    mode = VISUAL;
-  } else if (real_state & INSERT) {
-    mode = INSERT;
-  } else if (real_state & CMDLINE) {
-    mode = CMDLINE;
-  } else if (real_state & TERM_FOCUS) {
-    mode = TERM_FOCUS;
-  } else {
-    mode = NORMAL;
+  if (old_mode_idx != mode_idx) {
+    old_mode_idx = mode_idx;
+    UI_CALL(mode_change, mode_idx);
   }
-  UI_CALL(mode_change, mode);
   conceal_check_cursur_line();
 }
 
