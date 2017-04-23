@@ -24,7 +24,8 @@ SHAPE_IDX_VDRAG  = 13,      ///< dragging a vertical separator line
 SHAPE_IDX_MORE   = 14,      ///< Hit-return or More
 SHAPE_IDX_MOREL  = 15,      ///< Hit-return or More in last line
 SHAPE_IDX_SM     = 16,      ///< showing matching paren
-SHAPE_IDX_COUNT  = 17
+SHAPE_IDX_TERM   = 17,  ///< when TERM_FOCUS
+SHAPE_IDX_COUNT  = 18
 } ModeShape;
 
 typedef enum {

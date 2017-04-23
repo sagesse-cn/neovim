@@ -35,6 +35,7 @@ cursorentry_T shape_table[SHAPE_IDX_COUNT] =
   { "more", 0, 0, 0,   0L,   0L,   0L, 0, 0, "m", SHAPE_MOUSE },
   { "more_lastline", 0, 0, 0,   0L,   0L,   0L, 0, 0, "ml", SHAPE_MOUSE },
   { "showmatch", 0, 0, 0, 100L, 100L, 100L, 0, 0, "sm", SHAPE_CURSOR },
+  { "term_focus", 0, 0, 0, 700L, 400L, 250L, 0, 0, "tf", SHAPE_CURSOR+SHAPE_MOUSE },
 };
 
 /// Converts cursor_shapes into an Array of Dictionaries
@@ -292,6 +293,8 @@ int cursor_get_mode_idx(void)
     } else {
       return SHAPE_IDX_V;
     }
+  } else if (State & TERM_FOCUS) {
+    return SHAPE_IDX_TERM;
   } else {
     return SHAPE_IDX_N;
   }
