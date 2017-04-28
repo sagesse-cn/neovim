@@ -45,6 +45,15 @@
 #define OUTBUF_SIZE 0xffff
 
 #define TOO_MANY_EVENTS 1000000
+#define STARTS_WITH(str, prefix) (!memcmp(str, prefix, sizeof(prefix) - 1))
+
+typedef enum TermType {
+  kTermUnknown,
+  kTermGnome,
+  kTermiTerm,
+  kTermKonsole,
+  kTermRxvt,
+} TermType;
 
 typedef struct {
   int top, bot, left, right;
@@ -79,6 +88,7 @@ typedef struct {
   cursorentry_T cursor_shapes[SHAPE_IDX_COUNT];
   HlAttrs print_attrs;
   ModeShape showing_mode;
+  TermType term;
   struct {
     int enable_mouse, disable_mouse;
     int enable_bracketed_paste, disable_bracketed_paste;
@@ -101,7 +111,6 @@ UI *tui_start(void)
   UI *ui = xcalloc(1, sizeof(UI));
   ui->stop = tui_stop;
   ui->rgb = p_tgc;
-  ui->pum_external = false;
   ui->resize = tui_resize;
   ui->clear = tui_clear;
   ui->eol_clear = tui_eol_clear;
@@ -127,6 +136,9 @@ UI *tui_start(void)
   ui->set_title = tui_set_title;
   ui->set_icon = tui_set_icon;
   ui->event = tui_event;
+
+  memset(ui->ui_ext, 0, sizeof(ui->ui_ext));
+
   return ui_bridge_attach(ui, tui_main, tui_scheduler);
 }
 
@@ -530,7 +542,6 @@ static void tui_mouse_off(UI *ui)
   }
 }
 
-/// @param mode one of SHAPE_XXX
 static void tui_set_mode(UI *ui, ModeShape mode)
 {
   if (!cursor_style_enabled) {
@@ -539,14 +550,14 @@ static void tui_set_mode(UI *ui, ModeShape mode)
   TUIData *data = ui->data;
   cursorentry_T c = data->cursor_shapes[mode];
   int shape = c.shape;
-  bool inside_tmux = os_getenv("TMUX") != NULL;
+  bool is_tmux = os_getenv("TMUX") != NULL;
   unibi_var_t vars[26 + 26] = { { 0 } };
 
-# define TMUX_WRAP(seq) (inside_tmux ? "\x1bPtmux;\x1b" seq "\x1b\\" : seq)
+# define TMUX_WRAP(seq) (is_tmux ? "\x1bPtmux;\x1b" seq "\x1b\\" : seq)
   // Support changing cursor shape on some popular terminals.
   const char *vte_version = os_getenv("VTE_VERSION");
 
-  if (os_getenv("KONSOLE_PROFILE_NAME") || os_getenv("KONSOLE_DBUS_SESSION")) {
+  if (data->term == kTermKonsole) {
     // Konsole uses a proprietary escape code to set the cursor shape
     // and does not support DECSCUSR.
     switch (shape) {
@@ -580,9 +591,11 @@ static void tui_set_mode(UI *ui, ModeShape mode)
 
   if (c.id != 0 && ui->rgb) {
     int attr = syn_id2attr(c.id);
-    attrentry_T *aep = syn_cterm_attr2entry(attr);
-    data->params[0].i = aep->rgb_bg_color;
-    unibi_out(ui, data->unibi_ext.set_cursor_color);
+    if (attr > 0) {
+      attrentry_T *aep = syn_cterm_attr2entry(attr);
+      data->params[0].i = aep->rgb_bg_color;
+      unibi_out(ui, data->unibi_ext.set_cursor_color);
+    }
   }
 }
 
@@ -923,6 +936,24 @@ static void unibi_set_if_empty(unibi_term *ut, enum unibi_string str,
   }
 }
 
+static TermType detect_term(const char *term, const char *colorterm)
+{
+  if (STARTS_WITH(term, "rxvt")) {
+    return kTermRxvt;
+  }
+  if (os_getenv("KONSOLE_PROFILE_NAME") || os_getenv("KONSOLE_DBUS_SESSION")) {
+    return kTermKonsole;
+  }
+  const char *termprg = os_getenv("TERM_PROGRAM");
+  if (termprg && strstr(termprg, "iTerm.app")) {
+    return kTermiTerm;
+  }
+  if (colorterm && strstr(colorterm, "gnome-terminal")) {
+    return kTermGnome;
+  }
+  return kTermUnknown;
+}
+
 static void fix_terminfo(TUIData *data)
 {
   unibi_term *ut = data->ut;
@@ -932,10 +963,9 @@ static void fix_terminfo(TUIData *data)
   if (!term) {
     goto end;
   }
+  data->term = detect_term(term, colorterm);
 
-#define STARTS_WITH(str, prefix) (!memcmp(str, prefix, sizeof(prefix) - 1))
-
-  if (STARTS_WITH(term, "rxvt")) {
+  if (data->term == kTermRxvt) {
     unibi_set_if_empty(ut, unibi_exit_attribute_mode, "\x1b[m\x1b(B");
     unibi_set_if_empty(ut, unibi_flash_screen, "\x1b[?5h$<20/>\x1b[?5l");
     unibi_set_if_empty(ut, unibi_enter_italics_mode, "\x1b[3m");
@@ -947,7 +977,7 @@ static void fix_terminfo(TUIData *data)
     unibi_set_if_empty(ut, unibi_from_status_line, "\x1b\\");
   }
 
-  if (STARTS_WITH(term, "xterm") || STARTS_WITH(term, "rxvt")) {
+  if (STARTS_WITH(term, "xterm") || data->term == kTermRxvt) {
     const char *normal = unibi_get_str(ut, unibi_cursor_normal);
     if (!normal) {
       unibi_set_str(ut, unibi_cursor_normal, "\x1b[?25h");
@@ -984,7 +1014,7 @@ static void fix_terminfo(TUIData *data)
   if ((colorterm && strstr(colorterm, "256"))
       || strstr(term, "256")
       || strstr(term, "xterm")) {
-    // Assume TERM~=xterm or COLORTERM~=256 supports 256 colors.
+    // Assume TERM=~xterm or COLORTERM=~256 supports 256 colors.
     unibi_set_num(ut, unibi_max_colors, 256);
     unibi_set_str(ut, unibi_set_a_foreground, XTERM_SETAF);
     unibi_set_str(ut, unibi_set_a_background, XTERM_SETAB);
@@ -992,8 +1022,13 @@ static void fix_terminfo(TUIData *data)
 
 end:
   // Fill some empty slots with common terminal strings
-  data->unibi_ext.set_cursor_color = (int)unibi_add_ext_str(
-      ut, NULL, "\033]12;#%p1%06x\007");
+  if (data->term == kTermiTerm) {
+    data->unibi_ext.set_cursor_color = (int)unibi_add_ext_str(
+        ut, NULL, "\033]Pl%p1%06x\033\\");
+  } else {
+    data->unibi_ext.set_cursor_color = (int)unibi_add_ext_str(
+        ut, NULL, "\033]12;#%p1%06x\007");
+  }
   data->unibi_ext.enable_mouse = (int)unibi_add_ext_str(ut, NULL,
       "\x1b[?1002h\x1b[?1006h");
   data->unibi_ext.disable_mouse = (int)unibi_add_ext_str(ut, NULL,
