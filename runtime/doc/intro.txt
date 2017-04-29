@@ -34,11 +34,6 @@ It can be accessed from within Vim with the <Help> or <F1> key and with the
 is not located in the default place.  You can jump to subjects like with tags:
 Use CTRL-] to jump to a subject under the cursor, use CTRL-T to jump back.
 
-This manual refers to Vim on various machines.  There may be small differences
-between different computers and terminals.  Besides the remarks given in this
-document, there is a separate document for each supported system, see
-|sys-file-list|.
-
 							*pronounce*
 Vim is pronounced as one word, like Jim, not vi-ai-em.  It's written with a
 capital, since it's a name, again like Jim.
@@ -131,10 +126,7 @@ http://www.vim.org/maillist.php
 
 Bug reports:				*bugs* *bug-reports* *bugreport.vim*
 
-Send bug reports to: Vim Developers <vim-dev@vim.org>
-This is a maillist, you need to become a member first and many people will see
-the message.  If you don't want that, e.g. because it is a security issue,
-send it to <bugs@vim.org>, this only goes to the Vim maintainer (that's Bram).
+Report bugs on GitHub: https://github.com/neovim/neovim/issues
 
 Please be brief; all the time that is spent on answering mail is subtracted
 from the time that is spent on improving Vim!  Always give a reproducible
