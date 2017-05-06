@@ -253,7 +253,9 @@ static void tui_main(UIBridgeData *bridge, UI *ui)
   kv_init(data->invalid_regions);
   signal_watcher_init(data->loop, &data->winch_handle, ui);
   signal_watcher_init(data->loop, &data->cont_handle, data);
+#ifdef UNIX
   signal_watcher_start(&data->cont_handle, sigcont_cb, SIGCONT);
+#endif
   tui_terminal_start(ui);
   data->stop = false;
   // allow the main thread to continue, we are ready to start handling UI
@@ -282,10 +284,12 @@ static void tui_scheduler(Event event, void *d)
   loop_schedule(data->loop, event);
 }
 
+#ifdef UNIX
 static void sigcont_cb(SignalWatcher *watcher, int signum, void *data)
 {
   ((TUIData *)data)->cont_received = true;
 }
+#endif
 
 static void sigwinch_cb(SignalWatcher *watcher, int signum, void *data)
 {
@@ -573,7 +577,7 @@ static void tui_set_mode(UI *ui, ModeShape mode)
       default: WLOG("Unknown shape value %d", shape); break;
     }
     data->params[0].i = shape;
-    data->params[1].i = (c.blinkon == 0);
+    data->params[1].i = (c.blinkon != 0);
 
     unibi_format(vars, vars + 26,
       TMUX_WRAP("\x1b]50;CursorShape=%p1%d;BlinkingCursorEnabled=%p2%d\x07"),
@@ -746,6 +750,7 @@ static void tui_flush(UI *ui)
   flush_buf(ui, true);
 }
 
+#ifdef UNIX
 static void suspend_event(void **argv)
 {
   UI *ui = argv[0];
@@ -767,15 +772,18 @@ static void suspend_event(void **argv)
   // resume the main thread
   CONTINUE(data->bridge);
 }
+#endif
 
 static void tui_suspend(UI *ui)
 {
+#ifdef UNIX
   TUIData *data = ui->data;
   // kill(0, SIGTSTP) won't stop the UI thread, so we must poll for SIGCONT
   // before continuing. This is done in another callback to avoid
   // loop_poll_events recursion
   multiqueue_put_event(data->loop->fast_events,
                        event_create(suspend_event, 1, ui));
+#endif
 }
 
 static void tui_set_title(UI *ui, char *title)
@@ -1010,9 +1018,11 @@ static void fix_terminfo(TUIData *data)
   "\x1b[%?%p1%{8}%<%t4%p1%d%e%p1%{16}%<%t10%p1%{8}%-%d%e48;5;%p1%d%;m"
 
   if ((colorterm && strstr(colorterm, "256"))
+      || STARTS_WITH(term, "linux")
       || strstr(term, "256")
       || strstr(term, "xterm")) {
-    // Assume TERM=~xterm or COLORTERM=~256 supports 256 colors.
+    // Linux 4.8+ supports 256-color SGR, but terminfo has 8-color setaf/setab.
+    // Assume TERM=~xterm|linux or COLORTERM=~256 supports 256 colors.
     unibi_set_num(ut, unibi_max_colors, 256);
     unibi_set_str(ut, unibi_set_a_foreground, XTERM_SETAF);
     unibi_set_str(ut, unibi_set_a_background, XTERM_SETAB);
