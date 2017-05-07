@@ -9,19 +9,26 @@ include(CheckCSourceCompiles)
 include(CheckVariableExists)
 include(LibFindMacros)
 
+if (GETTEXT_SOURCE MATCHES CUSTOM)
+
+  list(APPEND CMAKE_PREFIX_PATH "../third-party/libintl")
+
+else()
+
 # Append custom gettext path to CMAKE_PREFIX_PATH
 # if installed via Mac Hombrew
-#if (CMAKE_HOST_APPLE)
-#    find_program(HOMEBREW_PROG brew)
-#    if (EXISTS ${HOMEBREW_PROG})
-#        execute_process(COMMAND ${HOMEBREW_PROG} --prefix gettext
-#            OUTPUT_STRIP_TRAILING_WHITESPACE
-#            OUTPUT_VARIABLE HOMEBREW_GETTEXT_PREFIX)
-#        list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_GETTEXT_PREFIX}")
-#    endif()
-#endif()
+if (CMAKE_HOST_APPLE)
+    find_program(HOMEBREW_PROG brew)
+    if (EXISTS ${HOMEBREW_PROG})
+        execute_process(COMMAND ${HOMEBREW_PROG} --prefix gettext
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            OUTPUT_VARIABLE HOMEBREW_GETTEXT_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_GETTEXT_PREFIX}")
+    endif()
+endif()
 
-list(APPEND CMAKE_PREFIX_PATH "../third-party/libintl")
+endif()
+
 
 find_path(LibIntl_INCLUDE_DIR
     NAMES libintl.h
