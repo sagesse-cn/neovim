@@ -7300,6 +7300,7 @@ static void do_exmap(exarg_T *eap, int isabbrev)
   }
 }
 
+#ifndef CUSTOM_UI
 /*
  * ":winsize" command (obsolete).
  */
@@ -7318,6 +7319,7 @@ static void ex_winsize(exarg_T *eap)
   else
     EMSG(_("E465: :winsize requires two number arguments"));
 }
+#endif
 
 static void ex_wincmd(exarg_T *eap)
 {

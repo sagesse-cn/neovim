@@ -1346,6 +1346,7 @@ static void handle_tag(char_u *tagname)
   }
 }
 
+#ifndef CUSTOM_UI
 // Print a warning if stdout is not a terminal.
 // When starting in Ex mode and commands come from a file, set Silent mode.
 static void check_tty(mparm_T *parmp)
@@ -1385,6 +1386,7 @@ static void check_tty(mparm_T *parmp)
   }
 #endif
 }
+#endif
 
 /*
  * Read text from stdin.
