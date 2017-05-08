@@ -449,7 +449,7 @@ void close_buffer(win_T *win, buf_T *buf, int action, int abort_if_last)
 
   if (buf->terminal) {
     terminal_close(buf->terminal, NULL);
-  } 
+  }
 
   /* Always remove the buffer when there is no file name. */
   if (buf->b_ffname == NULL)
@@ -2316,7 +2316,7 @@ void get_winopts(buf_T *buf)
   /* Set 'foldlevel' to 'foldlevelstart' if it's not negative. */
   if (p_fdls >= 0)
     curwin->w_p_fdl = p_fdls;
-  check_colorcolumn(curwin);
+  didset_window_options(curwin);
 }
 
 /*
