@@ -6613,6 +6613,19 @@ bool trigger_cursorhold(void) FUNC_ATTR_PURE FUNC_ATTR_WARN_UNUSED_RESULT
 /// @param event the autocommand to check
 bool has_event(int event) FUNC_ATTR_PURE FUNC_ATTR_WARN_UNUSED_RESULT
 {
+  switch (event) {
+    case EVENT_TEXTCHANGED:
+    case EVENT_TEXTCHANGEDI:
+    case EVENT_BUFWRITEPOST:
+    case EVENT_BUFLEAVE:
+    case EVENT_DIRCHANGED:
+    case EVENT_BUFWINENTER:
+    case EVENT_BUFWINLEAVE:
+    case EVENT_TABENTER:
+    case EVENT_BUFREADPOST:
+      return true;
+  }
+  
   return first_autopat[event] != NULL;
 }
 
@@ -6655,7 +6668,7 @@ static bool apply_autocmds_group(event_T event, char_u *fname, char_u *fname_io,
   static int filechangeshell_busy = FALSE;
   proftime_T wait_time;
   bool did_save_redobuff = false;
-
+  
 #ifdef CUSTOM_UI
   custom_ui_autocmds_groups(event, fname, fname_io, group, force, buf, eap);
 #endif
