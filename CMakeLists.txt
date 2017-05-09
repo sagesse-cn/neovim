@@ -319,6 +319,14 @@ if(DISABLE_TUI MATCHES DISABLE)
   option(FEAT_TUI "Enable the Terminal UI" OFF)
 endif()
 
+option(PREFER_LUAJIT "Prefer LuaJIT over Lua when compiling executable. Test library always uses luajit." ON)
+
+find_package(LuaJit REQUIRED)
+
+if(NOT PREFER_LUAJIT)
+  find_package(Lua REQUIRED)
+endif()
+
 list(APPEND CMAKE_REQUIRED_INCLUDES "${MSGPACK_INCLUDE_DIRS}")
 check_c_source_compiles("
 #include <msgpack.h>
