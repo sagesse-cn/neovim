@@ -687,7 +687,7 @@ static int term_settermprop(VTermProp prop, VTermValue *val, void *data)
 
 static int term_bell(void *data)
 {
-  ui_putc('\x07');
+  ui_call_bell();
   return 1;
 }
 
