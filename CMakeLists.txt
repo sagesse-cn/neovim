@@ -68,9 +68,9 @@ set(NVIM_VERSION_PATCH 1)
 set(NVIM_VERSION_PRERELEASE "-dev") # for package maintainers
 
 # API level
-set(NVIM_API_LEVEL 2)         # Bump this after any API change.
+set(NVIM_API_LEVEL 3)         # Bump this after any API change.
 set(NVIM_API_LEVEL_COMPAT 0)  # Adjust this after a _breaking_ API change.
-set(NVIM_API_PRERELEASE false)
+set(NVIM_API_PRERELEASE true)
 
 file(TO_CMAKE_PATH ${CMAKE_CURRENT_LIST_DIR}/.git FORCED_GIT_DIR)
 include(GetGitRevisionDescription)
@@ -221,6 +221,11 @@ else()
   add_definitions(-Wall -Wextra -pedantic -Wno-unused-parameter
     -Wstrict-prototypes -std=gnu99)
 
+  check_c_compiler_flag(-Wimplicit-fallthrough HAS_WIMPLICIT_FALLTHROUGH_FLAG)
+  if(HAS_WIMPLICIT_FALLTHROUGH_FLAG)
+    add_definitions(-Wimplicit-fallthrough)
+  endif()
+
   # On FreeBSD 64 math.h uses unguarded C11 extension, which taints clang
   # 3.4.1 used there.
   if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
@@ -319,12 +324,18 @@ if(DISABLE_TUI MATCHES DISABLE)
   option(FEAT_TUI "Enable the Terminal UI" OFF)
 endif()
 
-option(PREFER_LUAJIT "Prefer LuaJIT over Lua when compiling executable. Test library always uses luajit." ON)
+# Note: The test lib requires LuaJIT; it will be skipped if LuaJIT is missing.
+option(PREFER_LUA "Prefer Lua over LuaJIT in the nvim executable." OFF)
 
-find_package(LuaJit REQUIRED)
-
-if(NOT PREFER_LUAJIT)
+if(PREFER_LUA)
   find_package(Lua REQUIRED)
+  set(LUA_PREFERRED_INCLUDE_DIRS ${LUA_INCLUDE_DIR})
+  set(LUA_PREFERRED_LIBRARIES ${LUA_LIBRARIES})
+  find_package(LuaJit)
+else()
+  find_package(LuaJit REQUIRED)
+  set(LUA_PREFERRED_INCLUDE_DIRS ${LUAJIT_INCLUDE_DIRS})
+  set(LUA_PREFERRED_LIBRARIES ${LUAJIT_LIBRARIES})
 endif()
 
 list(APPEND CMAKE_REQUIRED_INCLUDES "${MSGPACK_INCLUDE_DIRS}")

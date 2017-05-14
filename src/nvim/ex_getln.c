@@ -1268,6 +1268,7 @@ static int command_line_handle_key(CommandLineState *s)
       }
       return command_line_changed(s);
     }
+    // fallthrough
 
   case K_UP:
   case K_DOWN:
@@ -5401,7 +5402,7 @@ char *script_get(exarg_T *const eap, size_t *const lenp)
 
   if (cmd[0] != '<' || cmd[1] != '<' || eap->getline == NULL) {
     *lenp = STRLEN(eap->arg);
-    return xmemdupz(eap->arg, *lenp);
+    return eap->skip ? NULL : xmemdupz(eap->arg, *lenp);
   }
 
   garray_T ga = { .ga_data = NULL, .ga_len = 0 };
