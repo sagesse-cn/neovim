@@ -237,8 +237,6 @@ Terminal *terminal_open(TerminalOptions opts)
   curbuf->b_p_scbk = p_scbk;  // 'scrollback'
   curbuf->b_p_tw = 0;         // 'textwidth'
   set_option_value("wrap", false, NULL, OPT_LOCAL);
-  set_option_value("number", false, NULL, OPT_LOCAL);
-  set_option_value("relativenumber", false, NULL, OPT_LOCAL);
   set_option_value("list", false, NULL, OPT_LOCAL);
   buf_set_term_title(curbuf, (char *)curbuf->b_ffname);
   RESET_BINDING(curwin);
@@ -643,7 +641,7 @@ static int term_movecursor(VTermPos new, VTermPos old, int visible,
 }
 
 static void buf_set_term_title(buf_T *buf, char *title)
-    FUNC_ATTR_NONNULL_ALL
+  FUNC_ATTR_NONNULL_ALL
 {
   Error err = ERROR_INIT;
   dict_set_var(buf->b_vars,

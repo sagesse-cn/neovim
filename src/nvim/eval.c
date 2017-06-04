@@ -5100,7 +5100,8 @@ bool garbage_collect(bool testing)
     do {
       yankreg_T reg;
       char name = NUL;
-      reg_iter = op_register_iter(reg_iter, &name, &reg);
+      bool is_unnamed = false;
+      reg_iter = op_register_iter(reg_iter, &name, &reg, &is_unnamed);
       if (name != NUL) {
         ABORTING(set_ref_dict)(reg.additional_data, copyID);
       }
@@ -12132,7 +12133,7 @@ void mapblock_fill_dict(dict_T *const dict,
                         const mapblock_T *const mp,
                         long buffer_value,
                         bool compatible)
-    FUNC_ATTR_NONNULL_ALL
+  FUNC_ATTR_NONNULL_ALL
 {
   char_u *lhs = str2special_save(mp->m_keys, true);
   char *const mapmode = map_mode_to_chars(mp->m_mode);
@@ -14324,22 +14325,39 @@ static void f_serverstart(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     return;
   }
 
+  char *address;
   // If the user supplied an address, use it, otherwise use a temp.
   if (argvars[0].v_type != VAR_UNKNOWN) {
     if (argvars[0].v_type != VAR_STRING) {
       EMSG(_(e_invarg));
       return;
     } else {
-      rettv->vval.v_string = (char_u *)xstrdup(tv_get_string(argvars));
+      address = xstrdup(tv_get_string(argvars));
     }
   } else {
-    rettv->vval.v_string = (char_u *)server_address_new();
+    address = server_address_new();
   }
 
-  int result = server_start((char *) rettv->vval.v_string);
+  int result = server_start(address);
+  xfree(address);
+
   if (result != 0) {
-    EMSG2("Failed to start server: %s", uv_strerror(result));
+    EMSG2("Failed to start server: %s",
+          result > 0 ? "Unknonwn system error" : uv_strerror(result));
+    return;
   }
+
+  // Since it's possible server_start adjusted the given {address} (e.g.,
+  // "localhost:" will now have a port), return the final value to the user.
+  size_t n;
+  char **addrs = server_address_list(&n);
+  rettv->vval.v_string = (char_u *)addrs[n - 1];
+
+  n--;
+  for (size_t i = 0; i < n; i++) {
+    xfree(addrs[i]);
+  }
+  xfree(addrs);
 }
 
 /// "serverstop()" function
@@ -14820,6 +14838,7 @@ static void f_setreg(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     regname = '"';
   }
 
+  bool set_unnamed = false;
   if (argvars[2].v_type != VAR_UNKNOWN) {
     const char *stropt = tv_get_string_chk(&argvars[2]);
     if (stropt == NULL) {
@@ -14846,6 +14865,10 @@ static void f_setreg(typval_T *argvars, typval_T *rettv, FunPtr fptr)
             block_len = getdigits_long((char_u **)&stropt) - 1;
             stropt--;
           }
+          break;
+        }
+        case 'u': case '"': {  // unnamed register
+          set_unnamed = true;
           break;
         }
       }
@@ -14900,6 +14923,11 @@ free_lstval:
                           append, yank_type, block_len);
   }
   rettv->vval.v_number = 0;
+
+  if (set_unnamed) {
+    // Discard the result. We already handle the error case.
+    if (op_register_set_previous(regname)) { }
+  }
 }
 
 /*
@@ -15042,6 +15070,54 @@ static void f_simplify(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   rettv->vval.v_string = (char_u *)xstrdup(p);
   simplify_filename(rettv->vval.v_string);  // Simplify in place.
   rettv->v_type = VAR_STRING;
+}
+
+/// "sockconnect()" function
+static void f_sockconnect(typval_T *argvars, typval_T *rettv, FunPtr fptr)
+{
+  if (argvars[0].v_type != VAR_STRING || argvars[1].v_type != VAR_STRING) {
+    EMSG(_(e_invarg));
+    return;
+  }
+  if (argvars[2].v_type != VAR_DICT && argvars[2].v_type != VAR_UNKNOWN) {
+    // Wrong argument types
+    EMSG2(_(e_invarg2), "expected dictionary");
+    return;
+  }
+
+  const char *mode = tv_get_string(&argvars[0]);
+  const char *address = tv_get_string(&argvars[1]);
+
+  bool tcp;
+  if (strcmp(mode, "tcp") == 0) {
+    tcp = true;
+  } else if (strcmp(mode, "pipe") == 0) {
+    tcp = false;
+  } else {
+    EMSG2(_(e_invarg2), "invalid mode");
+    return;
+  }
+
+  bool rpc = false;
+  if (argvars[2].v_type == VAR_DICT) {
+    dict_T *opts = argvars[2].vval.v_dict;
+    rpc = tv_dict_get_number(opts, "rpc") != 0;
+  }
+
+  if (!rpc) {
+    EMSG2(_(e_invarg2), "rpc option must be true");
+    return;
+  }
+
+  const char *error = NULL;
+  uint64_t id = channel_connect(tcp, address, 50, &error);
+
+  if (error) {
+    EMSG2(_("connection failed: %s"), error);
+  }
+
+  rettv->vval.v_number = (varnumber_T)id;
+  rettv->v_type = VAR_NUMBER;
 }
 
 /// struct used in the array that's given to qsort()
