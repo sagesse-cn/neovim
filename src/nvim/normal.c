@@ -3940,21 +3940,12 @@ static void nv_mousescroll(cmdarg_T *cap)
     if (mod_mask & (MOD_MASK_SHIFT | MOD_MASK_CTRL)) {
       (void)onepage(cap->arg ? FORWARD : BACKWARD, 1L);
     } else {
-#ifdef CUSTOM_UI
-      cap->count1 = 1;
-      cap->count0 = 1;
-#else
       cap->count1 = 3;
       cap->count0 = 3;
-#endif
       nv_scroll_line(cap);
     }
   } else {
-#ifdef CUSTOM_UI
-    mouse_scroll_horiz_step(cap->arg, 1);
-#else
     mouse_scroll_horiz(cap->arg);
-#endif
   }
 
   curwin->w_redr_status = true;
@@ -6371,7 +6362,9 @@ static void nv_visual(cmdarg_T *cap)
     }
   }
 
+  // CUSTOM_UI begin
   ui_cursor_shape();
+  // CUSTOM_UI end
 }
 
 /*

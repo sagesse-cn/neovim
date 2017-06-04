@@ -572,7 +572,7 @@ static linenr_T find_longest_lnum(void)
   return ret;
 }
 
-#ifdef CUSTOM_UI
+// CUSTOM_UI begin
 ///
 /// Do a horizontal scroll.  Return TRUE if the cursor moved, FALSE otherwise.
 /// Use step to set the lines to scroll.
@@ -613,43 +613,7 @@ bool mouse_scroll_horiz(int dir)
 {
   return mouse_scroll_horiz_step(dir, 6);
 }
-#else
-///
-/// Do a horizontal scroll.  Return TRUE if the cursor moved, FALSE otherwise.
-///
-bool mouse_scroll_horiz(int dir)
-{
-  if (curwin->w_p_wrap) {
-      return false;
-  }
-
-  int step = 6;
-  if (mod_mask & (MOD_MASK_SHIFT | MOD_MASK_CTRL)) {
-      step = curwin->w_width;
-  }
-
-  int leftcol = curwin->w_leftcol + (dir == MSCR_RIGHT ? -step : +step);
-  if (leftcol < 0) {
-      leftcol = 0;
-  }
-
-  if (curwin->w_leftcol == leftcol) {
-      return false;
-  }
-
-  curwin->w_leftcol = (colnr_T)leftcol;
-
-  // When the line of the cursor is too short, move the cursor to the
-  // longest visible line.
-  if (!virtual_active()
-      && (colnr_T)leftcol > scroll_line_len(curwin->w_cursor.lnum)) {
-      curwin->w_cursor.lnum = find_longest_lnum();
-      curwin->w_cursor.col = 0;
-  }
-
-  return leftcol_changed();
-}
-#endif
+// CUSTOM_UI end
 
 // Adjust the clicked column position if there are concealed characters
 // before the current column.  But only when it's absolutely necessary.
