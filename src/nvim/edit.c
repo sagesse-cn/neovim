@@ -7822,7 +7822,10 @@ static void ins_mouse(int c)
 }
 
 // CUSTOM_UI begin
-void custom_ui_scroll(int dir, int count) {
+void custom_ui_scroll(int dir, int count, int row, int col) {
+  mouse_row = row;
+  mouse_col = col;
+
   ins_mousescroll(dir, count);
 }
 
