@@ -969,10 +969,13 @@ void set_init_2(bool headless)
     p_window = Rows - 1;
   }
   set_number_default("window", Rows - 1);
+#if 0
+  // This bodges around problems that should be fixed in the TUI layer.
   if (!headless && !os_term_is_nice()) {
     set_string_option_direct((char_u *)"guicursor", -1, (char_u *)"",
                              OPT_GLOBAL, SID_NONE);
   }
+#endif
   parse_shape_opt(SHAPE_CURSOR);   // set cursor shapes from 'guicursor'
   (void)parse_printoptions();      // parse 'printoptions' default value
 }
@@ -1182,10 +1185,6 @@ do_set (
         showoptions(1, opt_flags);
         did_show = TRUE;
       }
-    } else if (STRNCMP(arg, "termcap",
-                   7) == 0 && !(opt_flags & OPT_MODELINE)) {
-      did_show = TRUE;
-      arg += 7;
     } else {
       prefix = 1;
       if (STRNCMP(arg, "no", 2) == 0) {
@@ -2454,12 +2453,11 @@ did_set_string_option (
   if ((secure || sandbox != 0)
       && (options[opt_idx].flags & P_SECURE)) {
     errmsg = e_secure;
-  }
-  /* Check for a "normal" file name in some options.  Disallow a path
-   * separator (slash and/or backslash), wildcards and characters that are
-   * often illegal in a file name. */
-  else if ((options[opt_idx].flags & P_NFNAME)
-           && vim_strpbrk(*varp, (char_u *)"/\\*?[|<>") != NULL) {
+  } else if ((options[opt_idx].flags & P_NFNAME)
+             && vim_strpbrk(*varp, (char_u *)"/\\*?[|;&<>\r\n") != NULL) {
+    // Check for a "normal" file name in some options.  Disallow a path
+    // separator (slash and/or backslash), wildcards and characters that are
+    // often illegal in a file name.
     errmsg = e_invarg;
   }
   /* 'backupcopy' */
@@ -3031,7 +3029,7 @@ did_set_string_option (
   /* 'pastetoggle': translate key codes like in a mapping */
   else if (varp == &p_pt) {
     if (*p_pt) {
-      (void)replace_termcodes(p_pt, STRLEN(p_pt), &p, true, true, false,
+      (void)replace_termcodes(p_pt, STRLEN(p_pt), &p, true, true, true,
                               CPO_TO_CPO_FLAGS);
       if (p != NULL) {
         if (new_value_alloced)
@@ -4075,7 +4073,7 @@ static char *set_num_option(int opt_idx, char_u *varp, long value,
     }
 
     /* Change window height NOW */
-    if (lastwin != firstwin) {
+    if (!ONE_WINDOW) {
       if (pp == &p_wh && curwin->w_height < p_wh)
         win_setheight((int)p_wh);
       if (pp == &p_hh && curbuf->b_help && curwin->w_height < p_hh)
@@ -4104,7 +4102,7 @@ static char *set_num_option(int opt_idx, char_u *varp, long value,
     }
 
     /* Change window width NOW */
-    if (lastwin != firstwin && curwin->w_width < p_wiw)
+    if (!ONE_WINDOW && curwin->w_width < p_wiw)
       win_setwidth((int)p_wiw);
   }
   /* 'winminwidth' */
@@ -5236,7 +5234,7 @@ static int put_setbool(FILE *fd, char *cmd, char *name, int value)
 
 void comp_col(void)
 {
-  int last_has_status = (p_ls == 2 || (p_ls == 1 && firstwin != lastwin));
+  int last_has_status = (p_ls == 2 || (p_ls == 1 && !ONE_WINDOW));
 
   sc_col = 0;
   ru_col = 0;
@@ -5715,7 +5713,22 @@ void buf_copy_options(buf_T *buf, int flags)
         free_buf_options(buf, TRUE);
         buf->b_p_ro = FALSE;                    /* don't copy readonly */
         buf->b_p_fenc = vim_strsave(p_fenc);
-        buf->b_p_ff = vim_strsave(p_ff);
+        switch (*p_ffs) {
+        case 'm':
+          buf->b_p_ff = vim_strsave((char_u *)FF_MAC);
+          break;
+        case 'd':
+          buf->b_p_ff = vim_strsave((char_u *)FF_DOS);
+          break;
+        case 'u':
+          buf->b_p_ff = vim_strsave((char_u *)FF_UNIX);
+          break;
+        default:
+          buf->b_p_ff = vim_strsave(p_ff);
+        }
+        if (buf->b_p_ff != NULL) {
+          buf->b_start_ffc = *buf->b_p_ff;
+        }
         buf->b_p_bh = empty_option;
         buf->b_p_bt = empty_option;
       } else
@@ -6053,8 +6066,8 @@ int ExpandSettings(expand_T *xp, regmatch_T *regmatch, int *num_file, char_u ***
   int count = 0;
   char_u      *str;
   int loop;
-  static char *(names[]) = {"all", "termcap"};
-  int ic = regmatch->rm_ic;             /* remember the ignore-case flag */
+  static char *(names[]) = { "all" };
+  int ic = regmatch->rm_ic;  // remember the ignore-case flag
 
   /* do this loop twice:
    * loop == 0: count the number of matching options
@@ -7036,8 +7049,11 @@ dict_T *get_winbuf_options(const int bufopt)
         if (opt->flags & P_STRING) {
           tv_dict_add_str(d, opt->fullname, strlen(opt->fullname),
                           *(const char **)varp);
+        } else if (opt->flags & P_NUM) {
+          tv_dict_add_nr(d, opt->fullname, strlen(opt->fullname),
+                         *(long *)varp);
         } else {
-          tv_dict_add_nr(d, opt->fullname, strlen(opt->fullname), *varp);
+          tv_dict_add_nr(d, opt->fullname, strlen(opt->fullname), *(int *)varp);
         }
       }
     }

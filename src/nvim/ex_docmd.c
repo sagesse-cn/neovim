@@ -340,12 +340,13 @@ int do_cmdline(char_u *cmdline, LineGetter fgetline,
   msg_list = &private_msg_list;
   private_msg_list = NULL;
 
-  /* It's possible to create an endless loop with ":execute", catch that
-   * here.  The value of 200 allows nested function calls, ":source", etc. */
-  if (call_depth == 200) {
+  // It's possible to create an endless loop with ":execute", catch that
+  // here.  The value of 200 allows nested function calls, ":source", etc.
+  // Allow 200 or 'maxfuncdepth', whatever is larger.
+  if (call_depth >= 200 && call_depth >= p_mfd) {
     EMSG(_("E169: Command too recursive"));
-    /* When converting to an exception, we do not include the command name
-     * since this is not an error of the specific command. */
+    // When converting to an exception, we do not include the command name
+    // since this is not an error of the specific command.
     do_errthrow((struct condstack *)NULL, (char_u *)NULL);
     msg_list = saved_msg_list;
     return FAIL;
@@ -844,8 +845,6 @@ int do_cmdline(char_u *cmdline, LineGetter fgetline,
         break;
       case ET_INTERRUPT:
         break;
-      default:
-        p = vim_strsave((char_u *)_(e_internal));
       }
 
       saved_sourcing_name = sourcing_name;
@@ -1667,11 +1666,15 @@ static char_u * do_one_cmd(char_u **cmdlinep,
     ea.addr_count++;
 
     if (*ea.cmd == ';') {
-      if (!ea.skip)
+      if (!ea.skip) {
         curwin->w_cursor.lnum = ea.line2;
-    } else if (*ea.cmd != ',')
+        // Don't leave the cursor on an illegal line (caused by ';')
+        check_cursor_lnum();
+      }
+    } else if (*ea.cmd != ',') {
       break;
-    ++ea.cmd;
+    }
+    ea.cmd++;
   }
 
   /* One address given: set start and end lines */
@@ -1681,9 +1684,6 @@ static char_u * do_one_cmd(char_u **cmdlinep,
     if (lnum == MAXLNUM)
       ea.addr_count = 0;
   }
-
-  /* Don't leave the cursor on an illegal line (caused by ';') */
-  check_cursor_lnum();
 
   /*
    * 5. Parse the command.
@@ -3440,6 +3440,11 @@ const char * set_one_cmd_context(
     xp->xp_pattern = (char_u *)arg;
     break;
 
+  case CMD_messages:
+    xp->xp_context = EXPAND_MESSAGES;
+    xp->xp_pattern = (char_u *)arg;
+    break;
+
   case CMD_history:
     xp->xp_context = EXPAND_HISTORY;
     xp->xp_pattern = (char_u *)arg;
@@ -4670,17 +4675,17 @@ char_u *find_nextcmd(const char_u *p)
   return (char_u *)p + 1;
 }
 
-/*
- * Check if *p is a separator between Ex commands.
- * Return NULL if it isn't, (p + 1) if it is.
- */
+/// Check if *p is a separator between Ex commands, skipping over white space.
+/// Return NULL if it isn't, the following character if it is.
 char_u *check_nextcmd(char_u *p)
 {
-  p = skipwhite(p);
-  if (*p == '|' || *p == '\n')
-    return p + 1;
-  else
-    return NULL;
+    char_u *s = skipwhite(p);
+
+    if (*s == '|' || *s == '\n') {
+        return (s + 1);
+    } else {
+        return NULL;
+    }
 }
 
 /*
@@ -4747,7 +4752,7 @@ static int uc_add_command(char_u *name, size_t name_len, char_u *rep,
   char_u      *rep_buf = NULL;
   garray_T    *gap;
 
-  replace_termcodes(rep, STRLEN(rep), &rep_buf, false, false, false,
+  replace_termcodes(rep, STRLEN(rep), &rep_buf, false, false, true,
                     CPO_TO_CPO_FLAGS);
   if (rep_buf == NULL) {
     /* Can't replace termcodes - try using the string as is */
@@ -4874,6 +4879,7 @@ static struct {
 #endif
   { EXPAND_MAPPINGS, "mapping" },
   { EXPAND_MENUS, "menu" },
+  { EXPAND_MESSAGES, "messages" },
   { EXPAND_OWNSYNTAX, "syntax" },
   { EXPAND_SYNTIME, "syntime" },
   { EXPAND_SETTINGS, "option" },
@@ -5976,7 +5982,7 @@ static void ex_quit(exarg_T *eap)
     // specified. Example:
     // :h|wincmd w|1q     - don't quit
     // :h|wincmd w|q      - quit
-    if (only_one_window() && (firstwin == lastwin || eap->addr_count == 0)) {
+    if (only_one_window() && (ONE_WINDOW || eap->addr_count == 0)) {
       getout(0);
     }
     /* close window; may free buffer */
@@ -6174,12 +6180,14 @@ static void ex_tabonly(exarg_T *eap)
  */
 void tabpage_close(int forceit)
 {
-  /* First close all the windows but the current one.  If that worked then
-   * close the last window in this tab, that will close it. */
-  if (lastwin != firstwin)
-    close_others(TRUE, forceit);
-  if (lastwin == firstwin)
+  // First close all the windows but the current one.  If that worked then
+  // close the last window in this tab, that will close it.
+  if (!ONE_WINDOW) {
+    close_others(true, forceit);
+  }
+  if (ONE_WINDOW) {
     ex_win_close(forceit, curwin, NULL);
+  }
 }
 
 /*
@@ -6247,31 +6255,27 @@ void ex_all(exarg_T *eap)
 
 static void ex_hide(exarg_T *eap)
 {
-  if (*eap->arg != NUL && check_nextcmd(eap->arg) == NULL)
-    eap->errmsg = e_invarg;
-  else {
-    /* ":hide" or ":hide | cmd": hide current window */
-    eap->nextcmd = check_nextcmd(eap->arg);
+    // ":hide" or ":hide | cmd": hide current window
     if (!eap->skip) {
-      if (eap->addr_count == 0)
-        win_close(curwin, FALSE); /* don't free buffer */
-      else {
-        int winnr = 0;
-        win_T *win = NULL;
+        if (eap->addr_count == 0) {
+            win_close(curwin, false);  // don't free buffer
+        } else {
+            int winnr = 0;
+            win_T *win = NULL;
 
-        FOR_ALL_WINDOWS_IN_TAB(wp, curtab) {
-          winnr++;
-          if (winnr == eap->line2) {
-            win = wp;
-            break;
-          }
+            FOR_ALL_WINDOWS_IN_TAB(wp, curtab) {
+                winnr++;
+                if (winnr == eap->line2) {
+                    win = wp;
+                    break;
+                }
+            }
+            if (win == NULL) {
+                win = lastwin;
+            }
+            win_close(win, false);
         }
-        if (win == NULL)
-          win = lastwin;
-        win_close(win, FALSE);
-      }
     }
-  }
 }
 
 /*
@@ -8321,7 +8325,7 @@ static void ex_tag_cmd(exarg_T *eap, char_u *name)
     break;
   default:                              /* ":tag" */
     if (p_cst && *eap->arg != NUL) {
-      do_cstag(eap);
+      ex_cstag(eap);
       return;
     }
     cmd = DT_TAG;
@@ -9596,6 +9600,16 @@ char_u *get_behave_arg(expand_T *xp, int idx)
     return (char_u *)"mswin";
   if (idx == 1)
     return (char_u *)"xterm";
+  return NULL;
+}
+
+// Function given to ExpandGeneric() to obtain the possible arguments of the
+// ":messages {clear}" command.
+char_u *get_messages_arg(expand_T *xp FUNC_ATTR_UNUSED, int idx)
+{
+  if (idx == 0) {
+    return (char_u *)"clear";
+  }
   return NULL;
 }
 

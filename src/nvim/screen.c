@@ -86,6 +86,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#include "nvim/log.h"
 #include "nvim/vim.h"
 #include "nvim/ascii.h"
 #include "nvim/arabic.h"
@@ -991,7 +992,7 @@ static void win_update(win_T *wp)
      * first. */
     if (mid_start == 0) {
       mid_end = wp->w_height;
-      if (lastwin == firstwin) {
+      if (ONE_WINDOW) {
         /* Clear the screen when it was not done by win_del_lines() or
          * win_ins_lines() above, "screen_cleared" is FALSE or MAYBE
          * then. */
@@ -4230,7 +4231,6 @@ win_line (
          * (regardless of the xn,am settings).
          * Only do this if the cursor is on the current line
          * (something has been written in it).
-         * Don't do this for the GUI.
          * Don't do this for double-width characters.
          * Don't do this for a window not at the right screen border.
          */
@@ -4875,11 +4875,14 @@ void win_redr_status(win_T *wp)
   int this_ru_col;
   static int busy = FALSE;
 
-  /* It's possible to get here recursively when 'statusline' (indirectly)
-   * invokes ":redrawstatus".  Simply ignore the call then. */
-  if (busy)
+  // May get here recursively when 'statusline' (indirectly)
+  // invokes ":redrawstatus".  Simply ignore the call then.
+  if (busy
+      // Also ignore if wildmenu is showing.
+      || (wild_menu_showing != 0 && !ui_is_external(kUIWildmenu))) {
     return;
-  busy = TRUE;
+  }
+  busy = true;
 
   wp->w_redr_status = FALSE;
   if (wp->w_status_height == 0) {
@@ -5846,12 +5849,12 @@ static void screen_char(unsigned off, int row, int col)
   if (row >= screen_Rows || col >= screen_Columns)
     return;
 
-  /* Outputting the last character on the screen may scrollup the screen.
-   * Don't to it!  Mark the character invalid (update it when scrolled up) */
+  // Outputting the last character on the screen may scrollup the screen.
+  // Don't to it!  Mark the character invalid (update it when scrolled up)
+  // FIXME: The premise here is not actually true (cf. deferred wrap).
   if (row == screen_Rows - 1 && col == screen_Columns - 1
-      /* account for first command-line character in rightleft mode */
-      && !cmdmsg_rl
-      ) {
+      // account for first command-line character in rightleft mode
+      && !cmdmsg_rl) {
     ScreenAttrs[off] = (sattr_T)-1;
     return;
   }
@@ -6442,13 +6445,11 @@ void setcursor(void)
   }
 }
 
-/*
- * insert 'line_count' lines at 'row' in window 'wp'
- * if 'invalid' is TRUE the wp->w_lines[].wl_lnum is invalidated.
- * if 'mayclear' is TRUE the screen will be cleared if it is faster than
- * scrolling.
- * Returns FAIL if the lines are not inserted, OK for success.
- */
+/// Insert 'line_count' lines at 'row' in window 'wp'.
+/// If 'invalid' is TRUE the wp->w_lines[].wl_lnum is invalidated.
+/// If 'mayclear' is TRUE the screen will be cleared if it is faster than
+/// scrolling.
+/// Returns FAIL if the lines are not inserted, OK for success.
 int win_ins_lines(win_T *wp, int row, int line_count, int invalid, int mayclear)
 {
   int did_delete;
@@ -6511,13 +6512,11 @@ int win_ins_lines(win_T *wp, int row, int line_count, int invalid, int mayclear)
   return OK;
 }
 
-/*
- * delete "line_count" window lines at "row" in window "wp"
- * If "invalid" is TRUE curwin->w_lines[] is invalidated.
- * If "mayclear" is TRUE the screen will be cleared if it is faster than
- * scrolling
- * Return OK for success, FAIL if the lines are not deleted.
- */
+/// Delete "line_count" window lines at "row" in window "wp".
+/// If "invalid" is TRUE curwin->w_lines[] is invalidated.
+/// If "mayclear" is TRUE the screen will be cleared if it is faster than
+/// scrolling
+/// Return OK for success, FAIL if the lines are not deleted.
 int win_del_lines(win_T *wp, int row, int line_count, int invalid, int mayclear)
 {
   int retval;
@@ -7161,7 +7160,7 @@ static int fillchar_status(int *attr, win_T *wp)
    * window differs, or the fillchars differ, or this is not the
    * current window */
   if (*attr != 0 && ((win_hl_attr(wp, HLF_S) != win_hl_attr(wp, HLF_SNC)
-                      || !is_curwin || firstwin == lastwin)
+                      || !is_curwin || ONE_WINDOW)
                      || (fill_stl != fill_stlnc))) {
     return fill;
   }

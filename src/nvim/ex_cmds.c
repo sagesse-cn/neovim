@@ -2802,16 +2802,18 @@ void ex_z(exarg_T *eap)
   int j;
   linenr_T lnum = eap->line2;
 
-  /* Vi compatible: ":z!" uses display height, without a count uses
-   * 'scroll' */
-  if (eap->forceit)
+  // Vi compatible: ":z!" uses display height, without a count uses
+  // 'scroll'
+  if (eap->forceit) {
     bigness = curwin->w_height;
-  else if (firstwin == lastwin)
+  } else if (ONE_WINDOW) {
     bigness = curwin->w_p_scr * 2;
-  else
+  } else {
     bigness = curwin->w_height - 3;
-  if (bigness < 1)
+  }
+  if (bigness < 1) {
     bigness = 1;
+  }
 
   x = eap->arg;
   kind = x;
@@ -3332,7 +3334,8 @@ static buf_T *do_sub(exarg_T *eap, proftime_T timeout)
   // Check for a match on each line.
   linenr_T line2 = eap->line2;
   for (linenr_T lnum = eap->line1;
-       lnum <= line2 && !(got_quit || aborting());
+       lnum <= line2 && !(got_quit || aborting())
+       && (!preview || matched_lines.size <= (size_t)p_cwh);
        lnum++) {
     long nmatch = vim_regexec_multi(&regmatch, curwin, curbuf, lnum,
                                     (colnr_T)0, NULL);
@@ -5022,8 +5025,9 @@ static void helptags_one(char_u *dir, char_u *ext, char_u *tagfname,
   if (gen_expand_wildcards(1, buff_list, &filecount, &files,
           EW_FILE|EW_SILENT) == FAIL
       || filecount == 0) {
-    if (!got_int)
-      EMSG2("E151: No match: %s", NameBuff);
+    if (!got_int) {
+      EMSG2(_("E151: No match: %s"), NameBuff);
+    }
     return;
   }
 
@@ -5222,7 +5226,7 @@ static void do_helptags(char_u *dirname, bool add_help_tags)
   if (gen_expand_wildcards(1, buff_list, &filecount, &files,
                            EW_FILE|EW_SILENT) == FAIL
       || filecount == 0) {
-    EMSG2("E151: No match: %s", NameBuff);
+    EMSG2(_("E151: No match: %s"), NameBuff);
     xfree(dirname);
     return;
   }

@@ -494,6 +494,7 @@ EXTERN int updating_screen INIT(= FALSE);
 EXTERN win_T    *firstwin;              /* first window */
 EXTERN win_T    *lastwin;               /* last window */
 EXTERN win_T    *prevwin INIT(= NULL);  /* previous window */
+# define ONE_WINDOW (firstwin == lastwin)
 /*
  * When using this macro "break" only breaks out of the inner loop. Use "goto"
  * to break out of the tabpage loop.
@@ -930,8 +931,11 @@ EXTERN char_u langmap_mapchar[256];     /* mapping for language keys */
 EXTERN int save_p_ls INIT(= -1);        /* Save 'laststatus' setting */
 EXTERN int save_p_wmh INIT(= -1);       /* Save 'winminheight' setting */
 EXTERN int wild_menu_showing INIT(= 0);
-# define WM_SHOWN       1               /* wildmenu showing */
-# define WM_SCROLLED    2               /* wildmenu showing with scroll */
+enum {
+  WM_SHOWN = 1,     ///< wildmenu showing
+  WM_SCROLLED = 2,  ///< wildmenu showing with scroll
+  WM_LIST = 3,      ///< cmdline CTRL-D
+};
 
 
 EXTERN char breakat_flags[256];         /* which characters are in 'breakat' */

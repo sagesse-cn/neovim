@@ -47,6 +47,7 @@
 #include "nvim/mbyte.h"
 #include "nvim/memline.h"
 #include "nvim/memory.h"
+#include "nvim/menu.h"
 #include "nvim/message.h"
 #include "nvim/misc1.h"
 #include "nvim/keymap.h"
@@ -4239,10 +4240,16 @@ static int eval7(
         // use its contents.
         s = deref_func_name((const char *)s, &len, &partial, !evaluate);
 
+        // Need to make a copy, in case evaluating the arguments makes
+        // the name invalid.
+        s = xmemdupz(s, len);
+
         // Invoke the function.
         ret = get_func_tv(s, len, rettv, arg,
                           curwin->w_cursor.lnum, curwin->w_cursor.lnum,
                           &len, evaluate, partial, NULL);
+
+        xfree(s);
 
         // If evaluate is false rettv->v_type was not set in
         // get_func_tv, but it's needed in handle_subscript() to parse
@@ -8167,6 +8174,19 @@ static void f_expand(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   }
 }
 
+
+/// "menu_get(path [, modes])" function
+static void f_menu_get(typval_T *argvars, typval_T *rettv, FunPtr fptr)
+{
+  tv_list_alloc_ret(rettv);
+  int modes = MENU_ALL_MODES;
+  if (argvars[1].v_type == VAR_STRING) {
+    const char_u *const strmodes = (char_u *)tv_get_string(&argvars[1]);
+    modes = get_menu_cmd_modes(strmodes, false, NULL, NULL);
+  }
+  menu_get((char_u *)tv_get_string(&argvars[0]), modes, rettv->vval.v_list);
+}
+
 /*
  * "extend(list, list [, idx])" function
  * "extend(dict, dict [, action])" function
@@ -9059,7 +9079,8 @@ static dict_T *get_buffer_info(buf_T *buf)
   tv_dict_add_nr(dict, S_LEN("bufnr"), buf->b_fnum);
   tv_dict_add_str(dict, S_LEN("name"),
                   buf->b_ffname != NULL ? (const char *)buf->b_ffname : "");
-  tv_dict_add_nr(dict, S_LEN("lnum"), buflist_findlnum(buf));
+  tv_dict_add_nr(dict, S_LEN("lnum"),
+                 buf == curbuf ? curwin->w_cursor.lnum : buflist_findlnum(buf));
   tv_dict_add_nr(dict, S_LEN("loaded"), buf->b_ml.ml_mfp != NULL);
   tv_dict_add_nr(dict, S_LEN("listed"), buf->b_p_bl);
   tv_dict_add_nr(dict, S_LEN("changed"), bufIsChanged(buf));
@@ -12114,7 +12135,7 @@ static void get_maparg(typval_T *argvars, typval_T *rettv, int exact)
 
   mode = get_map_mode((char_u **)&which, 0);
 
-  keys = replace_termcodes(keys, STRLEN(keys), &keys_buf, true, true, false,
+  keys = replace_termcodes(keys, STRLEN(keys), &keys_buf, true, true, true,
                            CPO_TO_CPO_FLAGS);
   rhs = check_map(keys, mode, exact, false, abbr, &mp, &buffer_local);
   xfree(keys_buf);
@@ -12454,7 +12475,7 @@ static void f_matchadd(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     return;
   }
   if (id >= 1 && id <= 3) {
-    EMSGN("E798: ID is reserved for \":match\": %" PRId64, id);
+    EMSGN(_("E798: ID is reserved for \":match\": %" PRId64), id);
     return;
   }
 
@@ -12511,7 +12532,7 @@ static void f_matchaddpos(typval_T *argvars, typval_T *rettv, FunPtr fptr)
 
     // id == 3 is ok because matchaddpos() is supposed to substitute :3match 
     if (id == 1 || id == 2) {
-        EMSGN("E798: ID is reserved for \"match\": %" PRId64, id);
+        EMSGN(_("E798: ID is reserved for \"match\": %" PRId64), id);
         return;
     }
 
@@ -14185,6 +14206,8 @@ do_searchpair (
   int nest = 1;
   int options = SEARCH_KEEP;
   proftime_T tm;
+  size_t pat2_len;
+  size_t pat3_len;
 
   /* Make 'cpoptions' empty, the 'l' flag should not be used here. */
   save_cpo = p_cpo;
@@ -14193,18 +14216,22 @@ do_searchpair (
   /* Set the time limit, if there is one. */
   tm = profile_setlimit(time_limit);
 
-  /* Make two search patterns: start/end (pat2, for in nested pairs) and
-   * start/middle/end (pat3, for the top pair). */
-  pat2 = xmalloc(STRLEN(spat) + STRLEN(epat) + 15);
-  pat3 = xmalloc(STRLEN(spat) + STRLEN(mpat) + STRLEN(epat) + 23);
-  sprintf((char *)pat2, "\\(%s\\m\\)\\|\\(%s\\m\\)", spat, epat);
-  if (*mpat == NUL)
+  // Make two search patterns: start/end (pat2, for in nested pairs) and
+  // start/middle/end (pat3, for the top pair).
+  pat2_len = STRLEN(spat) + STRLEN(epat) + 17;
+  pat2 = xmalloc(pat2_len);
+  pat3_len = STRLEN(spat) + STRLEN(mpat) + STRLEN(epat) + 25;
+  pat3 = xmalloc(pat3_len);
+  snprintf((char *)pat2, pat2_len, "\\m\\(%s\\m\\)\\|\\(%s\\m\\)", spat, epat);
+  if (*mpat == NUL) {
     STRCPY(pat3, pat2);
-  else
-    sprintf((char *)pat3, "\\(%s\\m\\)\\|\\(%s\\m\\)\\|\\(%s\\m\\)",
-        spat, epat, mpat);
-  if (flags & SP_START)
+  } else {
+    snprintf((char *)pat3, pat3_len,
+             "\\m\\(%s\\m\\)\\|\\(%s\\m\\)\\|\\(%s\\m\\)", spat, epat, mpat);
+  }
+  if (flags & SP_START) {
     options |= SEARCH_START;
+  }
 
   save_cursor = curwin->w_cursor;
   pos = curwin->w_cursor;
@@ -15138,7 +15165,8 @@ static void f_sockconnect(typval_T *argvars, typval_T *rettv, FunPtr fptr)
   }
 
   const char *error = NULL;
-  uint64_t id = channel_connect(tcp, address, 50, &error);
+  eval_format_source_name_line((char *)IObuff, sizeof(IObuff));
+  uint64_t id = channel_connect(tcp, address, 50, (char *)IObuff, &error);
 
   if (error) {
     EMSG2(_("connection failed: %s"), error);
@@ -19528,18 +19556,22 @@ static const char *find_option_end(const char **const arg, int *const opt_flags)
   } else if (*p == 'l' && p[1] == ':') {
     *opt_flags = OPT_LOCAL;
     p += 2;
-  } else
+  } else {
     *opt_flags = 0;
+  }
 
-  if (!ASCII_ISALPHA(*p))
+  if (!ASCII_ISALPHA(*p)) {
     return NULL;
+  }
   *arg = p;
 
-  if (p[0] == 't' && p[1] == '_' && p[2] != NUL && p[3] != NUL)
-    p += 4;         /* termcap option */
-  else
-    while (ASCII_ISALPHA(*p))
-      ++p;
+  if (p[0] == 't' && p[1] == '_' && p[2] != NUL && p[3] != NUL) {
+    p += 4;  // t_xx/termcap option
+  } else {
+    while (ASCII_ISALPHA(*p)) {
+      p++;
+    }
+  }
   return p;
 }
 
@@ -22446,8 +22478,9 @@ static inline bool common_job_start(TerminalJobData *data, typval_T *rettv)
 
 
   if (data->rpc) {
-    // the rpc channel takes over the in and out streams
-    channel_from_process(proc, data->id);
+    eval_format_source_name_line((char *)IObuff, sizeof(IObuff));
+    // RPC channel takes over the in/out streams.
+    channel_from_process(proc, data->id, (char *)IObuff);
   } else {
     wstream_init(proc->in, 0);
     if (proc->out) {
@@ -22771,4 +22804,12 @@ bool eval_has_provider(const char *name)
   }
 
   return false;
+}
+
+/// Writes "<sourcing_name>:<sourcing_lnum>" to `buf[bufsize]`.
+void eval_format_source_name_line(char *buf, size_t bufsize)
+{
+  snprintf(buf, bufsize, "%s:%" PRIdLINENR,
+           (sourcing_name ? sourcing_name : (char_u *)"?"),
+           (sourcing_name ? sourcing_lnum : 0));
 }
