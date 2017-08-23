@@ -7,6 +7,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifdef WIN32
+# include <wchar.h>
+# include <winnls.h>
+#endif
+
 #include <msgpack.h>
 
 #include "nvim/ascii.h"
@@ -215,10 +220,28 @@ void early_init(void)
 
 #ifdef MAKE_LIB
 int nvim_main(int argc, char **argv)
+#elif defined WIN32
+// don't use codepage encoded arguments. see #7060
+int wmain(int argc, wchar_t **argv_w)
 #else
 int main(int argc, char **argv)
 #endif
 {
+#ifdef WIN32
+  char *argv[argc];
+
+  for (size_t i = 0; i < (size_t)argc; i++) {
+    // get required buffer size
+    size_t dest_size = (size_t)WideCharToMultiByte(
+        CP_UTF8, 0, argv_w[i], -1, NULL, 0, NULL, NULL);
+    char *buf = (char *)xmallocz(dest_size);
+    // convert from utf16 (widechar) utf8 (multibyte)
+    WideCharToMultiByte(CP_UTF8, 0, argv_w[i], -1, buf, (int)dest_size,
+                        NULL, NULL);
+    argv[i] = buf;
+  }
+#endif
+
   argv0 = argv[0];
 
   char_u *fname = NULL;   // file name from command line
@@ -1307,10 +1330,29 @@ static void set_window_layout(mparm_T *paramp)
 static void load_plugins(void)
 {
   if (p_lpl) {
-    source_runtime((char_u *)"plugin/**/*.vim", DIP_ALL | DIP_NOAFTER);  // NOLINT
-    TIME_MSG("loading plugins");
+    char_u *rtp_copy = NULL;
 
-    ex_packloadall(NULL);
+    // First add all package directories to 'runtimepath', so that their
+    // autoload directories can be found.  Only if not done already with a
+    // :packloadall command.
+    // Make a copy of 'runtimepath', so that source_runtime does not use the
+    // pack directories.
+    if (!did_source_packages) {
+      rtp_copy = vim_strsave(p_rtp);
+      add_pack_start_dirs();
+    }
+
+    source_in_path(rtp_copy == NULL ? p_rtp : rtp_copy,
+                   (char_u *)"plugin/**/*.vim",  // NOLINT
+                   DIP_ALL | DIP_NOAFTER);
+    TIME_MSG("loading plugins");
+    xfree(rtp_copy);
+
+    // Only source "start" packages if not done already with a :packloadall
+    // command.
+    if (!did_source_packages) {
+      load_start_packages();
+    }
     TIME_MSG("loading packages");
 
     source_runtime((char_u *)"plugin/**/*.vim", DIP_ALL | DIP_AFTER);
