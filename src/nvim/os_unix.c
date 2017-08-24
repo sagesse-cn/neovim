@@ -137,9 +137,9 @@ void mch_exit(int r) FUNC_ATTR_NORETURN
 {
   exiting = true;
 
-  ml_close_all(true);           /* remove all memfiles */
   ui_builtin_stop();
   ui_flush();
+  ml_close_all(true);           // remove all memfiles
 
   if (!event_teardown() && r == 0) {
     r = 1;  // Exit with error if main_loop did not teardown gracefully.
@@ -150,9 +150,7 @@ void mch_exit(int r) FUNC_ATTR_NORETURN
   free_all_mem();
 #endif
 
-#ifndef MAKE_LIB
   exit(r);
-#endif
 }
 
 #define SHELL_SPECIAL (char_u *)"\t \"&'$;<>()\\|"
