@@ -705,7 +705,7 @@ static const int included_patches[] = {
   250,
   // 249 NA
   // 248,
-  // 247,
+  247,
   // 246 NA
   // 245,
   // 244,
@@ -743,7 +743,7 @@ static const int included_patches[] = {
   // 212,
   // 211 NA
   // 210,
-  // 209,
+  209,
   208,
   // 207,
   // 206,
@@ -827,7 +827,7 @@ static const int included_patches[] = {
   128,
   127,
   126,
-  // 125,
+  125,
   124,
   // 123 NA
   // 122 NA
