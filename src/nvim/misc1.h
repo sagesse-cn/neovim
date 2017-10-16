@@ -15,3 +15,8 @@
 # include "misc1.h.generated.h"
 #endif
 #endif  // NVIM_MISC1_H
+
+#ifdef CUSTOM_UI
+extern void custom_ui_buf_changed (
+   linenr_T lnum, colnr_T col, linenr_T lnume, long xtra );
+#endif

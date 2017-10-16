@@ -1053,6 +1053,7 @@ void msg_start(void)
   // When redirecting, may need to start a new line.
   if (!did_return) {
     redir_write("\n", 1);
+    printf("%s %zd:%zd\n", __func__, msg_row - cmdline_row, msg_col);
   }
 }
 
@@ -1627,6 +1628,8 @@ static void msg_puts_display(const char_u *str, int maxlen, int attr,
   int sb_col = msg_col;
   int wrap;
   int did_last_char;
+    
+  printf("%s %zd:%zd %.*s -> %d\n", __func__, msg_row - cmdline_row, msg_col, maxlen, str, attr);
 
   did_wait_return = false;
   while ((maxlen < 0 || (int)(s - str) < maxlen) && *s != NUL) {
@@ -2412,6 +2415,8 @@ void msg_clr_eos_force(void)
     screen_fill(msg_row, msg_row + 1, msg_col, (int)Columns, ' ', ' ', 0);
     screen_fill(msg_row + 1, (int)Rows, 0, (int)Columns, ' ', ' ', 0);
   }
+    
+  printf("%s %zd:%zd\n", __func__, msg_row - cmdline_row, msg_col);
 }
 
 /*

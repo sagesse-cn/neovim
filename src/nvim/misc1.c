@@ -1979,6 +1979,10 @@ static void changed_common(linenr_T lnum, colnr_T col, linenr_T lnume, long xtra
 
   /* mark the buffer as modified */
   changed();
+    
+#ifdef CUSTOM_UI
+  custom_ui_buf_changed(lnum, col, lnume, xtra);
+#endif
 
   /* set the '. mark */
   if (!cmdmod.keepjumps) {

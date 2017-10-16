@@ -6032,8 +6032,7 @@ static int nfa_regmatch(nfa_regprog_T *prog, nfa_state_T *start,
 #ifdef REGEXP_DEBUG
             fprintf(log_fd, "\n");
             fprintf(log_fd, "==================================\n");
-            fprintf(log_fd, "Postponed recursive nfa_regmatch()\n");
-            fprintf(log_fd, "\n");
+a            fprintf(log_fd, "\n");
 #endif
             result = recursive_regmatch(pim->state, pim,
                 prog, submatch, m, &listids);
